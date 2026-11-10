@@ -27,7 +27,7 @@ public static class Updater2
 {
     public const string AssetName = "Claude-Sync-Setup.exe";
     public const int CheckEveryHours = 6;
-    public const string DefaultSource = "";      // "proprietaire/Claude-Sync" une fois le depot public ou la beta ouverte ; reglable par "mises_a_jour" dans config.json
+    public const string DefaultSource = "Zal3D/Claude-Sync";      // depot public des versions ; reglable par "mises_a_jour" dans config.json
     const long MaxBytes = 120L << 20;
 
     // Acces reseau remplacable par les tests

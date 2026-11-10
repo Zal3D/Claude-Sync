@@ -105,6 +105,22 @@ public static class Cs2
         return r.Ok ? 0 : 2;
     }
 
+    // update [--source proprietaire/depot] [--install] : cherche une version plus recente (et l'installe seulement avec --install)
+    static int UpdateCmd(Args a)
+    {
+        string src = a.Opt("source") ?? Updater2.DefaultSource;
+        string st = a.Opt("state") ?? AppConfig.DefaultStateDir;
+        if (a.Opt("source") == null && AppConfig.Load(st) is { UpdateSource: { Length: > 0 } cu }) src = cu;
+        var u = Updater2.Check(src, V2Info.Version, st, true, DateTime.UtcNow, out string err);
+        if (u == null) { Console.WriteLine(err.Length > 0 ? "Verification impossible : " + err : "Version " + V2Info.Version + " : a jour."); return err.Length > 0 ? 3 : 0; }
+        Console.WriteLine("Version " + u.Version + " disponible (installee : " + V2Info.Version + "). Empreinte SHA-256 : " + u.Sha256);
+        if (!a.Has("install")) return 0;
+        string path = Updater2.Download(u, Path.Combine(Path.GetTempPath(), "ClaudeSync2-update"));
+        Console.WriteLine("Telecharge et verifie : " + path);
+        Updater2.Apply(path);
+        return 0;
+    }
+
     static int Uninstall(Args a)
     {
         var t = TargetOf(a);
@@ -137,6 +153,7 @@ public static class Cs2
         try { Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false)) { AutoFlush = true }); Console.SetError(new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true }); } catch (Exception) { }
         //     // accents corrects quel que soit la page de codes de la console
         var a = new Args(args);
+        if (a.Cmd == "update") return UpdateCmd(a);
         if (a.Cmd == "install") return Install(a);
         if (a.Cmd == "uninstall") return Uninstall(a);
         if (a.Cmd == "uninstall-cleanup") return Installer2.Cleanup(args.Length > 1 ? args[1] : "");
@@ -178,6 +195,7 @@ public static class Cs2
         Console.WriteLine("Claude-Sync V2 (console)\n" +
             "  enroll --host H --user U [--port 22] [--folder claude-sync] [--pc NOM] [--projets C:\\Projets] [--fingerprint SHA256:...]   (mot de passe : variable CS_PASSWORD, sinon saisie)\n" +
             "  sync [--apply] [--claude auto|yes|no|idle] [--wait-lock SECONDES] [--no-pull]    (sans --apply : simulation)\n" +
+            "  update [--source proprietaire/depot] [--install]\n" +
             "  install [--silent] [--no-startup] [--launch] | uninstall [--silent] [--purge-state]   (--sandbox DOSSIER : essai hors du vrai profil)\n" +
             "  ping | conflicts | resolve N local|hub|both | trash | restore N | purge [--days 30]\n" +
             "  option commune : --state DOSSIER (defaut : %LOCALAPPDATA%\\ClaudeSync2)");
