@@ -17,7 +17,8 @@ public sealed class AppConfig
     public string? IndexDir;                      // dossier des sessions de Claude Desktop (detecte si absent)
     public int SlowMs = 120;                      // au-dela : liaison lente (mode econome a l'ouverture de Claude)
     public int LaunchWaitSeconds = 120;
-    public bool BlockLaunch = true;               // a l'ouverture de Claude : le fermer, synchroniser, le relancer
+    public bool BlockLaunch;                      // a l'ouverture de Claude : le fermer, synchroniser, le relancer (DESACTIVE par defaut : choix de l'utilisateur, Options)
+    public bool AutoUpdate;                       // installer les mises a jour toutes seules, quand l'application est au repos (DESACTIVE par defaut)
     public string UpdateSource = "";             // depot GitHub (ou autre) des mises a jour
     public string Language = "";                  // "" = langue de Windows
 
@@ -43,6 +44,7 @@ public sealed class AppConfig
             long slow = Json.Lng(d, "seuil_lent_ms"); if (slow > 0) c.SlowMs = (int)slow;
             long wait = Json.Lng(d, "attente_ouverture_s"); if (wait > 0) c.LaunchWaitSeconds = (int)wait;
             if (d.ContainsKey("bloquer_ouverture")) c.BlockLaunch = Json.Bool(d, "bloquer_ouverture");
+            if (d.ContainsKey("mises_a_jour_auto")) c.AutoUpdate = Json.Bool(d, "mises_a_jour_auto");
             return c.Host.Length > 0 && c.User.Length > 0 ? c : null;
         }
         catch (Exception) { return null; }
@@ -56,7 +58,7 @@ public sealed class AppConfig
             new("hote", Host), new("port", Port), new("utilisateur", User), new("dossier", Folder), new("pc", Pc),
             new("cle", KeyFile.Replace('\\', '/')), new("known_hosts", KnownHosts.Replace('\\', '/')), new("outils", ToolsDir.Replace('\\', '/')),
             new("projets", ProjetsRoot.Replace('\\', '/')), new("sessions", IndexDir?.Replace('\\', '/')),
-            new("seuil_lent_ms", SlowMs), new("attente_ouverture_s", LaunchWaitSeconds), new("bloquer_ouverture", BlockLaunch), new("mises_a_jour", UpdateSource), new("langue", Language)
+            new("seuil_lent_ms", SlowMs), new("attente_ouverture_s", LaunchWaitSeconds), new("bloquer_ouverture", BlockLaunch), new("mises_a_jour_auto", AutoUpdate), new("mises_a_jour", UpdateSource), new("langue", Language)
         };
         var sb = new StringBuilder("{\n");
         for (int i = 0; i < d.Count; i++) sb.Append("  ").Append(Json.Serialize(d[i].Key)).Append(": ").Append(Json.Serialize(d[i].Value)).Append(i < d.Count - 1 ? ",\n" : "\n");

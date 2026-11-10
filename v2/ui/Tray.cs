@@ -21,7 +21,7 @@ sealed class TrayApp2 : ApplicationContext
     readonly Watcher W = new();
     readonly ToolStripMenuItem pauseItem, syncItem, updItem;
     string? announcedUpdate; int updTicks;
-    volatile bool handling;
+    volatile bool handling; string? autoTried;
     float angle; Icon? cur; bool disposed;
 
     public TrayApp2(AppModel model, bool hidden, int exitAfterSeconds = 0, bool noWatch = false)
@@ -112,6 +112,10 @@ sealed class TrayApp2 : ApplicationContext
     {
         // verification des mises a jour : 90 s apres le demarrage puis toutes les 30 min (la regle des 6 h est appliquee par Updater2)
         if (++updTicks == 90 || updTicks % 1800 == 0) M.CheckUpdate(false);
+        // installation automatique (si l'utilisateur l'a demandee) : au repos seulement, une seule tentative par version
+        var upd = M.Update;
+        if (upd != null && M.AutoUpdate && !M.UpdateBusy && autoTried != upd.Version && !M.Busy && !handling && !M.Paused && M.Conflicts.Count == 0 && M.State != UiState.Working)
+        { autoTried = upd.Version; M.InstallUpdate(); }
         bool running = ClaudeDesktop.Running();
         var o = W.Tick(new WatchInput
         {

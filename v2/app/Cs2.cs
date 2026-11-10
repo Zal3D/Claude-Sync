@@ -72,6 +72,7 @@ public static class Cs2
         int.TryParse(a.Opt("exit-after"), out int after);
         var app = new TrayApp2(model, a.Has("hidden"), after, a.Has("no-watch"));
         Installer2.ListenForQuit(AppDomain.CurrentDomain.BaseDirectory, app.RequestQuit);
+        System.Threading.Tasks.Task.Run(() => Updater2.CleanupOld(Path.GetTempPath(), TimeSpan.FromDays(1)));
         System.Windows.Forms.Application.Run(app);
         return 0;
     }

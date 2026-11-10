@@ -6,4 +6,4 @@
 [assembly: System.Reflection.AssemblyCopyright("(c) 2026 Romain NOZAL - MIT License")]
 [assembly: System.Reflection.AssemblyVersion("2.0.0.0")]
 [assembly: System.Reflection.AssemblyFileVersion("2.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersion("2.0.0-beta.6")]
+[assembly: System.Reflection.AssemblyInformationalVersion("2.0.0")]

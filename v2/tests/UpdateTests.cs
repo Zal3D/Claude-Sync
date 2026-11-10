@@ -122,6 +122,17 @@ static class UpdateTests
             T.Check("fichier minuscule refuse", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.5", Url = "https://x.org/s.zip", Sha256 = Sha(new byte[100]) }, dest)));
         });
 
+        T.Run("T184b nettoyage des dossiers temporaires de mise a jour : seulement les vieux", delegate
+        {
+            string tmp = Path.Combine(root, "tmpclean"); Directory.CreateDirectory(Path.Combine(tmp, "ClaudeSync2-update", "Claude-Sync-1.0.0")); Directory.CreateDirectory(Path.Combine(tmp, "ClaudeSync2-update", "Claude-Sync-9.9.9"));
+            File.WriteAllText(Path.Combine(tmp, "ClaudeSync2-uninstall-abc123.exe"), "x"); File.WriteAllText(Path.Combine(tmp, "autre.exe"), "x");
+            Directory.SetLastWriteTimeUtc(Path.Combine(tmp, "ClaudeSync2-update", "Claude-Sync-1.0.0"), DateTime.UtcNow.AddDays(-3));
+            File.SetLastWriteTimeUtc(Path.Combine(tmp, "ClaudeSync2-uninstall-abc123.exe"), DateTime.UtcNow.AddDays(-3));
+            int n = Updater2.CleanupOld(tmp, TimeSpan.FromDays(1));
+            T.Check("2 elements anciens supprimes", n == 2, n.ToString());
+            T.Check("le dossier recent et les autres fichiers sont gardes", Directory.Exists(Path.Combine(tmp, "ClaudeSync2-update", "Claude-Sync-9.9.9")) && !Directory.Exists(Path.Combine(tmp, "ClaudeSync2-update", "Claude-Sync-1.0.0")) && File.Exists(Path.Combine(tmp, "autre.exe")) && !File.Exists(Path.Combine(tmp, "ClaudeSync2-uninstall-abc123.exe")));
+        });
+
         T.Run("T185 textes de mise a jour : francais et anglais", delegate
         {
             var keys = Loc.Keys.Where(k => k.StartsWith("update.") || k == "tray.update").ToList();

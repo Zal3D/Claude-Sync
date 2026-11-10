@@ -12,7 +12,7 @@ namespace ClaudeSync.V2;
 
 public static class V2Info
 {
-    public const string Version = "2.0.0-beta.6";
+    public const string Version = "2.0.0";
 }
 
 public sealed class AppModel
@@ -71,7 +71,10 @@ public sealed class AppModel
     public int LastCode;
     public string? PhaseOverride;                      // texte force pendant la prise en charge de l'ouverture de Claude
     public bool Paused;                                // synchronisation suspendue par l'utilisateur
-    public bool BlockLaunch => Config?.BlockLaunch ?? true;
+    public bool BlockLaunch => Config?.BlockLaunch ?? false;
+    public bool AutoUpdate => Config?.AutoUpdate ?? false;
+    public void SetBlockLaunch(bool on) { if (Config == null) return; Config.BlockLaunch = on; Config.Save(StateDir); Raise(); }
+    public void SetAutoUpdate(bool on) { if (Config == null) return; Config.AutoUpdate = on; Config.Save(StateDir); Raise(); }
 
     // Synchronisation complete, BLOQUANTE (appelee en tache de fond). claude : "auto" | "no" | "idle" | "yes". Retourne le code du moteur.
     public int RunSyncBlocking(string claude = "auto", int waitLock = 90, bool apply = true)

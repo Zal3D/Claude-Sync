@@ -203,6 +203,23 @@ public static class Updater2
         return exe;
     }
 
+    // Au demarrage : supprime les dossiers temporaires de mises a jour precedentes (et copies de desinstallation) vieux de plus d'un jour.
+    public static int CleanupOld(string tempRoot, TimeSpan age)
+    {
+        int n = 0;
+        try
+        {
+            string upd = Path.Combine(tempRoot, "ClaudeSync2-update");
+            if (Directory.Exists(upd))
+                foreach (string d in Directory.GetDirectories(upd, "Claude-Sync-*"))
+                    if (DateTime.UtcNow - Directory.GetLastWriteTimeUtc(d) > age) { try { Directory.Delete(d, true); n++; } catch (Exception) { } }
+            foreach (string f in Directory.GetFiles(tempRoot, "ClaudeSync2-uninstall-*.exe"))
+                if (DateTime.UtcNow - File.GetLastWriteTimeUtc(f) > age) { try { File.Delete(f); n++; } catch (Exception) { } }
+        }
+        catch (Exception) { }
+        return n;
+    }
+
     // Lance l'installeur telecharge (il arrete l'ancienne version, remplace les fichiers et relance Claude-Sync) : l'appelant doit alors se fermer.
     public static void Apply(string setupExe)
     {

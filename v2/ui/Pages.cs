@@ -179,6 +179,7 @@ sealed class HomePage : PageBase
         surf.OpenConflicts += () => Go(PageId.Conflicts);
         surf.OpenTrash += () => Go(PageId.Trash);
         surf.ButtonClicked += () => { if (M.Configured) M.SyncNow(); else Go(PageId.Server); };
+        surf.Controls.Add(new Label { Text = Loc.S("about.version", V2Info.Version), Font = F(12), ForeColor = Theme.Subtle, BackColor = Color.Transparent, Dock = DockStyle.Bottom, Height = D(30), TextAlign = ContentAlignment.MiddleCenter, UseMnemonic = false });
         Controls.Add(surf);
     }
 
@@ -356,7 +357,7 @@ sealed class OptionsPage : PageBase
 
         // --- application
         host.Controls.Add(Lbl(Loc.S("opt.app"), F(13, FontStyle.Bold), Theme.Subtle, Theme.Bg, new Rectangle(mg, y, iw, D(20)))); y += D(26);
-        var s3 = new CardPanel { Left = mg, Top = y, Width = iw, Height = D(176), BackColor = Theme.Card };
+        var s3 = new CardPanel { Left = mg, Top = y, Width = iw, Height = D(300), BackColor = Theme.Card };
         s3.Controls.Add(Lbl(Loc.S("opt.lang"), F(14), Theme.Text, cb, new Rectangle(pad, D(16), D(120), D(24))));
         var fr = Btn("Français", Loc.Lang == "fr", new Rectangle(iw - pad - D(220), D(12), D(100), D(32)), cb);
         var en = Btn("English", Loc.Lang == "en", new Rectangle(iw - pad - D(110), D(12), D(100), D(32)), cb);
@@ -371,11 +372,25 @@ sealed class OptionsPage : PageBase
         st.Click += delegate { try { Installer2.SetStartup(tg, !startOn); } catch (Exception) { } Go(PageId.Options); };
         s3.Controls.Add(st);
         if (!installedHere) s3.Controls.Add(Lbl(Loc.S("opt.startup.managed"), F(12), Theme.Subtle, cb, new Rectangle(pad, D(84), iw - 2 * pad, D(18))));
+        // Prise en charge de l'ouverture de Claude : choix de l'utilisateur (Claude est ferme puis relance le temps de synchroniser)
+        bool to = M.BlockLaunch;
+        s3.Controls.Add(Lbl(Loc.S("opt.takeover"), F(14), Theme.Text, cb, new Rectangle(pad, D(104), iw - 2 * pad - D(160), D(22))));
+        s3.Controls.Add(Lbl(Loc.S("opt.takeover.sub"), F(12), Theme.Subtle, cb, new Rectangle(pad, D(126), iw - 2 * pad - D(160), D(34)), ContentAlignment.TopLeft));
+        var tb = Btn(Loc.S(to ? "opt.startup.on" : "opt.startup.off"), to, new Rectangle(iw - pad - D(150), D(104), D(140), D(32)), cb);
+        tb.Enabled = M.Configured; tb.Click += delegate { M.SetBlockLaunch(!to); Go(PageId.Options); };
+        s3.Controls.Add(tb);
+        // Mises a jour automatiques : jamais par defaut ; seulement quand l'application est au repos
+        bool au = M.AutoUpdate;
+        s3.Controls.Add(Lbl(Loc.S("opt.autoupdate"), F(14), Theme.Text, cb, new Rectangle(pad, D(166), iw - 2 * pad - D(160), D(22))));
+        s3.Controls.Add(Lbl(Loc.S("opt.autoupdate.sub"), F(12), Theme.Subtle, cb, new Rectangle(pad, D(188), iw - 2 * pad - D(160), D(34)), ContentAlignment.TopLeft));
+        var ab = Btn(Loc.S(au ? "opt.startup.on" : "opt.startup.off"), au, new Rectangle(iw - pad - D(150), D(166), D(140), D(32)), cb);
+        ab.Enabled = M.Configured; ab.Click += delegate { M.SetAutoUpdate(!au); Go(PageId.Options); };
+        s3.Controls.Add(ab);
         // mises a jour : meme comportement que la page A propos (verification a la demande, installation seulement sur clic)
         bool updOn = Updater2.SourceUrl(M.UpdateSource) != null; var up = M.Update; lastUpd = UpdKey();
-        var upd = Btn(up != null ? Loc.S("update.install", up.Version) : Loc.S("opt.update"), up != null, new Rectangle(pad, D(104), D(280), D(34)), cb);
+        var upd = Btn(up != null ? Loc.S("update.install", up.Version) : Loc.S("opt.update"), up != null, new Rectangle(pad, D(228), D(280), D(34)), cb);
         upd.Enabled = updOn && !M.UpdateBusy;
-        var updMsg = Lbl(!updOn ? Loc.S("update.off") : M.UpdateText, F(12), up != null ? Theme.Accent : Theme.Subtle, cb, new Rectangle(pad, D(144), iw - 2 * pad, D(40)), ContentAlignment.TopLeft);
+        var updMsg = Lbl(!updOn ? Loc.S("update.off") : M.UpdateText, F(12), up != null ? Theme.Accent : Theme.Subtle, cb, new Rectangle(pad, D(266), iw - 2 * pad, D(30)), ContentAlignment.TopLeft);
         upd.Click += delegate { if (M.Update != null) M.InstallUpdate(); else M.CheckUpdate(true); };
         s3.Controls.Add(upd); s3.Controls.Add(updMsg);
         host.Controls.Add(s3);
