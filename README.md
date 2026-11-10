@@ -8,7 +8,7 @@
 Garde vos **conversations Claude Desktop** (sessions Cowork / Code) et votre **dossier de projets** identiques sur plusieurs PC Windows,
 grâce à **votre propre serveur** joint en SSH. Pas de service dans le nuage, pas de compte, rien ne sort de votre réseau.
 
-> **État : bêta (2.0.0-beta.4).** Développé et testé par son auteur (y compris sur liaisons lentes simulées), pas encore largement éprouvé au quotidien. Gardez vos propres sauvegardes.
+> **État : bêta (2.0.0-beta.5).** Développé et testé par son auteur (y compris sur liaisons lentes simulées), pas encore largement éprouvé au quotidien. Gardez vos propres sauvegardes.
 
 ### Fonctionnement
 
@@ -21,7 +21,7 @@ grâce à **votre propre serveur** joint en SSH. Pas de service dans le nuage, p
 ### Installation
 
 1. **Serveur** (une fois) : un compte SSH avec `rsync` et `python3`. Créez un compte dédié si possible ; un compte utilisateur ordinaire convient aussi.
-2. **Chaque PC** : télécharger `Claude-Sync-Setup.exe` sur la [page des versions](https://github.com/Zal3D/Claude-Sync/releases) et le lancer. Aucun droit administrateur n'est nécessaire (installation dans votre profil).
+2. **Chaque PC** : télécharger `Claude-Sync-win-x64.zip` sur la [page des versions](https://github.com/Zal3D/Claude-Sync/releases), l'**extraire** (clic droit, « Extraire tout »), puis double-cliquer sur `ClaudeSync2.exe` dans le dossier extrait. Aucun droit administrateur n'est nécessaire (installation dans votre profil). Le démarrage avec Windows est un choix, dans les Options de l'application.
 3. Au premier démarrage, saisissez l'adresse du serveur, votre nom d'utilisateur, le dossier à utiliser sur le serveur et votre **mot de passe — utilisé une seule fois**
    pour installer une clé SSH propre à ce PC, jamais enregistré. Ensuite, c'est la clé qui sert (limitée à Claude-Sync : elle ne peut rien exécuter d'autre sur le serveur).
 4. C'est fini. Claude-Sync démarre avec Windows et surveille Claude Desktop.
@@ -71,7 +71,7 @@ through **your own server** reached over SSH. No cloud service, no account, noth
 ### Install
 
 1. **Server** (once): an SSH account with `rsync` and `python3` installed. Create a dedicated account if you can; a normal user account works too.
-2. **Each PC**: download `Claude-Sync-Setup.exe` from the [releases page](https://github.com/Zal3D/Claude-Sync/releases) and run it. No administrator rights are needed (it installs into your user profile).
+2. **Each PC**: download `Claude-Sync-win-x64.zip` from the [releases page](https://github.com/Zal3D/Claude-Sync/releases), **extract** it (right-click, “Extract all”), then double-click `ClaudeSync2.exe` in the extracted folder. No administrator rights are needed (it installs into your user profile). Starting with Windows is optional, in the app's Options.
 3. At first start, enter the server address, your user name, the folder to use on the server and your **password — it is used once** to
    install a dedicated SSH key for this PC and is never stored. After that the key (restricted to Claude-Sync only: it can run nothing else on the server) is used.
 4. Done. Claude-Sync starts with Windows and watches Claude Desktop.

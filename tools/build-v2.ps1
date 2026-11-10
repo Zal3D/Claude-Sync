@@ -25,19 +25,40 @@ $sortie = & $csc @args2 2>&1 | Where-Object { $_ -notmatch 'CS0649' }
 if ($LASTEXITCODE -ne 0) { $sortie; throw 'La compilation a echoue.' }
 $sortie | Where-Object { $_ -match 'warning' }
 "Compile : $out\V2Tests.exe"
-# Application ClaudeSync2.exe (V1 + V2 modernes + app\) : UN SEUL .exe graphique qui contient le paquet des outils (payload.zip = serveur + rsync/ssh).
+# Application ClaudeSync2.exe : un petit exe graphique SANS fichier embarque (un exe qui en cache d'autres ressemble a un "dropper" : Windows Defender l'a
+# classe Trojan:Win32/Bearfoos.A!ml, comme avec la V1). Les outils (rsync, ssh) et le programme serveur sont LIVRES A COTE, dans le meme dossier (zip).
 $app = Join-Path $racine 'dist\v2app'
 New-Item -ItemType Directory -Force $app | Out-Null
 $v2a = Get-ChildItem (Join-Path $racine 'v2\app') -Filter *.cs -File | ForEach-Object { $_.FullName }
 $commA = @('/nologo', '/optimize+', '/debug-', '/codepage:65001', '/warn:3', '/langversion:latest', '/r:System.Windows.Forms.dll', '/r:System.Drawing.dll', '/r:System.Web.Extensions.dll', '/r:System.Management.dll', '/r:System.IO.Compression.dll', '/main:ClaudeSync.V2.Cs2')
-# paquet : serveur\ et outils\ (entrees ZIP avec des "/", empreinte SHA-256 verifiee a l'installation)
 Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 $pay = Join-Path $racine 'dist\v2payload'
 if (Test-Path $pay) { Remove-Item -Recurse -Force $pay }
 New-Item -ItemType Directory -Force $pay | Out-Null
-$zipPath = Join-Path $pay 'payload.zip'
+# 1re passe sans icone pour la fabriquer, 2e passe definitive (icone + manifeste + informations de version, sans console)
+$ico = Join-Path $pay 'ClaudeSync2.ico'
+$tmpExe = Join-Path $pay 'icone.exe'
+$s1 = & $csc @($commA + @('/target:exe', "/out:$tmpExe") + $v1 + $v2 + $v2a) 2>&1 | Where-Object { $_ -notmatch 'CS0649' }
+if ($LASTEXITCODE -ne 0) { $s1; throw 'La compilation de ClaudeSync2.exe (passe 1) a echoue.' }
+& $tmpExe icon $ico | Out-Null
+$argsA = @($commA + @("/win32icon:$ico", "/win32manifest:$(Join-Path $racine 'app.manifest')", '/target:winexe', "/out:$app\ClaudeSync2.exe") + $v1 + $v2 + $v2a)
+$sortieA = & $csc @argsA 2>&1 | Where-Object { $_ -notmatch 'CS0649' }
+if ($LASTEXITCODE -ne 0) { $sortieA; throw 'La compilation de ClaudeSync2.exe a echoue.' }
+$sortieA | Where-Object { $_ -match 'warning' }
+New-Item -ItemType Directory -Force "$app\serveur", "$app\outils\win-x64" | Out-Null
+Copy-Item (Join-Path $racine 'v2\serveur\*') "$app\serveur" -Force
+Copy-Item (Join-Path $racine 'v2\outils\win-x64\*') "$app\outils\win-x64" -Force
+"Compile : $app\ClaudeSync2.exe  ($([math]::Round((Get-Item "$app\ClaudeSync2.exe").Length / 1KB)) Ko, sans fichier embarque ; outils et serveur a cote)"
+# Livraison : dist\release\Claude-Sync-win-x64.zip = ClaudeSync2.exe + outils\ + serveur\ + LISEZ-MOI.txt (entrees avec des "/", empreinte SHA-256 a cote)
+$rel = Join-Path $racine 'dist\release'
+if (Test-Path $rel) { Remove-Item -Recurse -Force $rel }
+New-Item -ItemType Directory -Force $rel | Out-Null
+$zipPath = Join-Path $rel 'Claude-Sync-win-x64.zip'
+$lisezmoi = "Claude-Sync $((Select-String -Path (Join-Path $racine 'v2\ui\AppModel.cs') -Pattern 'Version = \"([^\"]+)\"').Matches[0].Groups[1].Value)`r`n`r`nFR : double-cliquez sur ClaudeSync2.exe pour installer (sans droits administrateur). Gardez ce dossier tel quel : outils\ et serveur\ doivent rester a cote de ClaudeSync2.exe.`r`nEN: double-click ClaudeSync2.exe to install (no administrator rights). Keep this folder as is: outils\ and serveur\ must stay next to ClaudeSync2.exe.`r`n`r`nhttps://github.com/Zal3D/Claude-Sync`r`nLicense: MIT; third-party notices: outils\licences\THIRD-PARTY-NOTICES.md`r`n"
 $zip = [System.IO.Compression.ZipFile]::Open($zipPath, 'Create')
 try {
+  [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, "$app\ClaudeSync2.exe", 'ClaudeSync2.exe', [System.IO.Compression.CompressionLevel]::Optimal)
+  $e = $zip.CreateEntry('LISEZ-MOI.txt'); $w = New-Object IO.StreamWriter($e.Open(), (New-Object Text.UTF8Encoding($false))); $w.Write($lisezmoi); $w.Dispose()
   foreach ($d in 'serveur', 'outils') {
     $base = Join-Path $racine "v2\$d"
     foreach ($f in Get-ChildItem $base -Recurse -File) {
@@ -46,22 +67,9 @@ try {
     }
   }
 } finally { $zip.Dispose() }
-(Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant() | Set-Content (Join-Path $pay 'payload.sha256') -Encoding ASCII -NoNewline
-$res = @("/resource:$zipPath,payload.zip", "/resource:$(Join-Path $pay 'payload.sha256'),payload.sha256")
-# 1re passe sans icone pour la fabriquer, 2e passe definitive (icone + manifeste, sans console)
-$ico = Join-Path $pay 'ClaudeSync2.ico'
-$tmpExe = Join-Path $pay 'icone.exe'
-$s1 = & $csc @($commA + @('/target:exe', "/out:$tmpExe") + $v1 + $v2 + $v2a) 2>&1 | Where-Object { $_ -notmatch 'CS0649' }
-if ($LASTEXITCODE -ne 0) { $s1; throw 'La compilation de ClaudeSync2.exe (passe 1) a echoue.' }
-& $tmpExe icon $ico | Out-Null
-$argsA = @($commA + @("/win32icon:$ico", "/win32manifest:$(Join-Path $racine 'app.manifest')", '/target:winexe', "/out:$app\ClaudeSync2.exe") + $res + $v1 + $v2 + $v2a)
-$sortieA = & $csc @argsA 2>&1 | Where-Object { $_ -notmatch 'CS0649' }
-if ($LASTEXITCODE -ne 0) { $sortieA; throw 'La compilation de ClaudeSync2.exe a echoue.' }
-$sortieA | Where-Object { $_ -match 'warning' }
-New-Item -ItemType Directory -Force "$app\serveur", "$app\outils\win-x64" | Out-Null
-Copy-Item (Join-Path $racine 'v2\serveur\*') "$app\serveur" -Force
-Copy-Item (Join-Path $racine 'v2\outils\win-x64\*') "$app\outils\win-x64" -Force
-"Compile : $app\ClaudeSync2.exe  ($([math]::Round((Get-Item "$app\ClaudeSync2.exe").Length / 1MB, 1)) Mo, paquet inclus)"
+$h = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+"$h  Claude-Sync-win-x64.zip" | Set-Content (Join-Path $rel 'Claude-Sync-win-x64.zip.sha256') -Encoding ASCII
+"Livraison : $zipPath  ($([math]::Round((Get-Item $zipPath).Length / 1MB, 1)) Mo)  SHA-256 $h"
 if ($SansLancer) { return }
 $a = @('--serveur', (Join-Path $racine 'v2\serveur\claudesync-serveur'))
 if ($Python) { $a += @('--python', $Python) }

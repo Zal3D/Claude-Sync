@@ -125,7 +125,9 @@ public static class Loc
         A("opt.app", "Application", "Application");
         A("opt.lang", "Langue", "Language");
         A("opt.startup", "Démarrer avec Windows", "Start with Windows");
-        A("opt.startup.managed", "géré par l'installation", "managed by the installer");
+        A("opt.startup.managed", "Disponible une fois Claude-Sync installé (menu Démarrer).", "Available once Claude-Sync is installed (Start menu).");
+        A("opt.startup.on", "Activé", "On");
+        A("opt.startup.off", "Désactivé", "Off");
         A("opt.update", "Rechercher une mise à jour", "Check for updates");
         A("opt.update.soon", "Les mises à jour par GitHub arrivent bientôt.", "Updates from GitHub are coming soon.");
         A("opt.folders", "Dossiers", "Folders");

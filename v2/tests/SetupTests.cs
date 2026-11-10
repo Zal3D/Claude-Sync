@@ -100,14 +100,49 @@ static class SetupTests
             if (Directory.Exists(t.Dir)) Installer2.Uninstall(t, false);
         });
 
-        T.Run("T154 option de demarrage : retiree a la reinstallation sans l'option", delegate
+        T.Run("T154 demarrage avec Windows : JAMAIS par defaut, choix de l'utilisateur (case des Options), conserve par une reinstallation", delegate
         {
             var t = InstallTarget.Sandbox(Path.Combine(root, "e"));
-            Installer2.Install(t, Opt(zip1, exe, startup: true));
-            T.Check("avec : raccourci de demarrage present", File.Exists(t.StartupLink));
+            Installer2.Install(t, new InstallOptions { SourceExe = exe, Payload = () => new MemoryStream(zip1), PayloadSha256 = Installer2.Hex(SHA256.Create().ComputeHash(zip1)) });
+            T.Check("installation par defaut : AUCUN raccourci de demarrage (seulement celui du menu)", !File.Exists(t.StartupLink) && File.Exists(t.MenuLink) && !Installer2.StartupEnabled(t));
+            Installer2.SetStartup(t, true);
+            T.Check("l'utilisateur l'active : raccourci cree", File.Exists(t.StartupLink) && Installer2.StartupEnabled(t));
             Installer2.Install(t, Opt(zip1, exe, startup: false));
-            T.Check("sans : retire, le raccourci du menu reste", !File.Exists(t.StartupLink) && File.Exists(t.MenuLink));
+            T.Check("une reinstallation ne retire pas son choix", File.Exists(t.StartupLink));
+            Installer2.SetStartup(t, false);
+            T.Check("il le desactive : retire, le raccourci du menu reste", !File.Exists(t.StartupLink) && File.Exists(t.MenuLink));
             Installer2.Uninstall(t, false);
+        });
+
+        T.Run("T158 livraison en dossier : outils et serveur a cote de l'exe (rien d'embarque dans l'exe)", delegate
+        {
+            string pkg = Path.Combine(root, "livraison"); Directory.CreateDirectory(Path.Combine(pkg, "outils", "win-x64")); Directory.CreateDirectory(Path.Combine(pkg, "serveur"));
+            File.WriteAllText(Path.Combine(pkg, "ClaudeSync2.exe"), "faux exe dossier");
+            File.WriteAllText(Path.Combine(pkg, "outils", "win-x64", "rsync.exe"), "rsyncD"); File.WriteAllText(Path.Combine(pkg, "outils", "win-x64", "ssh.exe"), "sshD");
+            File.WriteAllText(Path.Combine(pkg, "serveur", "claudesync-serveur"), "srvD"); File.WriteAllText(Path.Combine(pkg, "serveur", "claudesync-entree"), "entD");
+            var t = InstallTarget.Sandbox(Path.Combine(root, "h"));
+            T.Check("le dossier est reconnu comme paquet", Installer2.SiblingPayloadDir(Path.Combine(pkg, "ClaudeSync2.exe")) == pkg && Installer2.SiblingPayloadDir(exe) == null);
+            var r = Installer2.Install(t, new InstallOptions { SourceExe = Path.Combine(pkg, "ClaudeSync2.exe") });
+            T.Check("installation depuis le dossier reussie", r.Ok, r.Message);
+            T.Check("programme, outils et serveur copies", File.ReadAllText(t.ExePath) == "faux exe dossier" && File.ReadAllText(Path.Combine(t.Dir, "outils", "win-x64", "rsync.exe")) == "rsyncD" && File.ReadAllText(Path.Combine(t.Dir, "serveur", "claudesync-entree")) == "entD");
+            var r2 = Installer2.Install(t, new InstallOptions { SourceExe = Path.Combine(pkg, "ClaudeSync2.exe") });
+            T.Check("reinstallation : rien de reecrit sauf l'exe", r2.Ok && r2.Written == 1 && r2.Unchanged == 4, r2.Written + " ecrits, " + r2.Unchanged + " inchanges");
+            File.Delete(Path.Combine(t.Dir, "outils", "win-x64", "rsync.exe")); File.WriteAllText(Path.Combine(t.Dir, "outils", "ancien.txt"), "x");
+            var r3 = Installer2.Install(t, new InstallOptions { SourceExe = Path.Combine(pkg, "ClaudeSync2.exe") });
+            T.Check("fichier manquant retabli, fichier orphelin retire", r3.Ok && File.Exists(Path.Combine(t.Dir, "outils", "win-x64", "rsync.exe")) && !File.Exists(Path.Combine(t.Dir, "outils", "ancien.txt")));
+            Installer2.Uninstall(t, false);
+        });
+
+        T.Run("T159 arret DOUX de l'ancienne version : l'application est prevenue et se ferme seule (pas d'arret force)", delegate
+        {
+            string dir = Path.Combine(root, "doux"); Directory.CreateDirectory(dir);
+            var got = new ManualResetEventSlim();
+            var th = Installer2.ListenForQuit(dir, () => got.Set());
+            Thread.Sleep(300);
+            T.Check("le nom de l'evenement depend du dossier d'installation", Installer2.QuitEventName(dir) != Installer2.QuitEventName(Path.Combine(root, "autre")));
+            using (var ev = EventWaitHandle.OpenExisting(Installer2.QuitEventName(dir))) ev.Set();
+            T.Check("l'application recoit la demande de fermeture", got.Wait(3000));
+            T.Check("un autre dossier d'installation n'est pas concerne", !EventWaitHandle.TryOpenExisting(Installer2.QuitEventName(Path.Combine(root, "autre")), out _));
         });
 
         T.Run("T155 desinstallation : tout retire, etat conserve par defaut, supprime sur demande", delegate

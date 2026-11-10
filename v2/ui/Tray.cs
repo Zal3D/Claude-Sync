@@ -73,6 +73,7 @@ sealed class TrayApp2 : ApplicationContext
         win.Activate();
     }
 
+    public void RequestQuit() => OnUi(Quit);        // demande douce (installeur / mise a jour) : fermeture propre au lieu d'un arret force
     void OnUi(Action a) { try { if (win.InvokeRequired) win.BeginInvoke(a); else a(); } catch (Exception) { } }
     void Balloon(string msg, ToolTipIcon icon) => OnUi(() => { try { tray.ShowBalloonTip(5000, Loc.S("app"), msg, icon); } catch (Exception) { } });
 

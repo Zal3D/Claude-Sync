@@ -31,7 +31,6 @@ sealed class SetupWindow : Form
     readonly InstallTarget target;
     readonly string installedVer;
     readonly Label title, intro, folder, status;
-    readonly CheckBox startup;
     readonly SetupBar bar;
     readonly Pill main, cancel, uninstall;
     bool busy, done;
@@ -49,14 +48,13 @@ sealed class SetupWindow : Form
         title = new Label { Text = Loc.S(installed ? "setup.title.update" : "setup.title"), Font = new Font(Gfx.FamDisplay, 20f, FontStyle.Bold), ForeColor = Theme.Text, BackColor = Theme.Bg, Left = 96, Top = 26, Width = 440, Height = 44 };
         intro = new Label { Text = Loc.S("setup.intro"), ForeColor = Theme.Text, BackColor = Theme.Bg, Left = 96, Top = 78, Width = 440, Height = 78 };
         folder = new Label { Text = Loc.S("setup.folder", t.Dir) + (installed ? "\n" + Loc.S("setup.installed", installedVer) : ""), ForeColor = Theme.Subtle, BackColor = Theme.Bg, Left = 96, Top = 160, Width = 440, Height = 42, AutoEllipsis = true };
-        startup = new CheckBox { Text = Loc.S("setup.startup"), Checked = true, ForeColor = Theme.Text, BackColor = Theme.Bg, Left = 96, Top = 208, Width = 440, Height = 26, FlatStyle = FlatStyle.System };
         status = new Label { Text = "", ForeColor = Theme.Subtle, BackColor = Theme.Bg, Left = 96, Top = 246, Width = 440, Height = 24 };
         bar = new SetupBar { Left = 96, Top = 274, Width = 440, Height = 8, Visible = false };
         main = new Pill(Loc.S(!installed ? "setup.install" : installedVer == V2Info.Version ? "setup.reinstall" : "setup.update"), true) { Left = 306, Top = 304, Width = 132, Height = 36 };
         cancel = new Pill(Loc.S("setup.cancel"), false) { Left = 446, Top = 304, Width = 90, Height = 36 };
         uninstall = new Pill(Loc.S("setup.uninstall"), false) { Left = 20, Top = 304, Width = 120, Height = 36, Visible = installed };
         main.Click += (_, _) => OnMain(); cancel.Click += (_, _) => Close(); uninstall.Click += (_, _) => OnUninstall();
-        Controls.AddRange(new Control[] { title, intro, folder, startup, status, bar, main, cancel, uninstall });
+        Controls.AddRange(new Control[] { title, intro, folder, status, bar, main, cancel, uninstall });
         AcceptButton = null;
     }
 
@@ -78,16 +76,15 @@ sealed class SetupWindow : Form
     void OnMain()
     {
         if (done) { try { Installer2.Launch(target); } catch (Exception) { } Close(); return; }
-        busy = true; main.Enabled = cancel.Enabled = uninstall.Enabled = startup.Enabled = false;
-        bool st = startup.Checked;
+        busy = true; main.Enabled = cancel.Enabled = uninstall.Enabled = false;
         var th = new Thread(() =>
         {
-            var r = Installer2.Install(target, new InstallOptions { Startup = st }, (m, p) => BeginInvoke(new Action(() => SetStatus(m, p, p < 0))));
+            var r = Installer2.Install(target, new InstallOptions(), (m, p) => BeginInvoke(new Action(() => SetStatus(m, p, p < 0))));
             BeginInvoke(new Action(() =>
             {
                 busy = false; cancel.Enabled = true;
                 if (r.Ok) { done = true; SetStatus(r.Message, 100); main.Text = Loc.S("setup.open"); main.Width = 170; main.Left = 266; cancel.Text = Loc.S("setup.close"); main.Enabled = true; main.Invalidate(); }
-                else { SetStatus(r.Message, -1, true); main.Enabled = true; uninstall.Enabled = true; startup.Enabled = true; }
+                else { SetStatus(r.Message, -1, true); main.Enabled = true; uninstall.Enabled = true; }
             }));
         }) { IsBackground = true };
         th.Start();
@@ -98,6 +95,6 @@ sealed class SetupWindow : Form
         if (MessageBox.Show(this, Loc.S("setup.uninstall.ask"), Loc.S("app"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
         var r = Installer2.Uninstall(target, false);
         SetStatus(r.Message, -1, !r.Ok);
-        main.Visible = uninstall.Visible = startup.Visible = false; cancel.Text = Loc.S("setup.close"); cancel.Invalidate();
+        main.Visible = uninstall.Visible = false; cancel.Text = Loc.S("setup.close"); cancel.Invalidate();
     }
 }

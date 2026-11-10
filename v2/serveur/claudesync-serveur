@@ -16,7 +16,7 @@ Principes :
 """
 import os, sys, json, time, gzip, hashlib, signal, shutil, atexit, threading, queue, uuid, re
 
-VERSION = "2.0.0-beta.4"
+VERSION = "2.0.0-beta.5"
 PROTO = 1                                   # version du protocole client/serveur
 ROOT = os.environ.get("CS_ROOT", "").rstrip("/\\")
 TICKS_EPOCH = 621355968000000000            # 0001-01-01 -> 1970-01-01 en ticks .NET (100 ns)

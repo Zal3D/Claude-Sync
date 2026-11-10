@@ -362,7 +362,13 @@ sealed class OptionsPage : PageBase
         en.Click += delegate { M.SetLanguage("en"); Go(PageId.Options); };
         s3.Controls.Add(fr); s3.Controls.Add(en);
         s3.Controls.Add(Lbl(Loc.S("opt.startup"), F(14), Theme.Text, cb, new Rectangle(pad, D(60), iw - 2 * pad - D(200), D(24))));
-        s3.Controls.Add(Lbl(Loc.S("opt.startup.managed"), F(12), Theme.Subtle, cb, new Rectangle(iw - pad - D(220), D(60), D(220), D(24)), ContentAlignment.MiddleRight));
+        // Demarrage avec Windows : choix de l'utilisateur, jamais impose par l'installeur
+        var tg = InstallTarget.Default(); bool installedHere = Installer2.IsInstalledCopy(tg), startOn = installedHere && Installer2.StartupEnabled(tg);
+        var st = Btn(Loc.S(startOn ? "opt.startup.on" : "opt.startup.off"), startOn, new Rectangle(iw - pad - D(150), D(56), D(140), D(32)), cb);
+        st.Enabled = installedHere;
+        st.Click += delegate { try { Installer2.SetStartup(tg, !startOn); } catch (Exception) { } Go(PageId.Options); };
+        s3.Controls.Add(st);
+        if (!installedHere) s3.Controls.Add(Lbl(Loc.S("opt.startup.managed"), F(12), Theme.Subtle, cb, new Rectangle(pad, D(84), iw - 2 * pad, D(18))));
         var upd = Btn(Loc.S("opt.update"), false, new Rectangle(pad, D(104), D(240), D(34)), cb);
         var updMsg = Lbl("", F(12), Theme.Subtle, cb, new Rectangle(pad, D(144), iw - 2 * pad, D(22)));
         upd.Click += delegate { updMsg.Text = Loc.S("opt.update.soon"); };

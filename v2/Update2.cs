@@ -25,7 +25,7 @@ public sealed class UpdateInfo
 
 public static class Updater2
 {
-    public const string AssetName = "Claude-Sync-Setup.exe";
+    public const string AssetName = "Claude-Sync-win-x64.zip";       // dossier compresse : ClaudeSync2.exe + outils\ + serveur\ (rien n'est cache dans l'exe)
     public const int CheckEveryHours = 6;
     public const string DefaultSource = "Zal3D/Claude-Sync";      // depot public des versions ; reglable par "mises_a_jour" dans config.json
     const long MaxBytes = 120L << 20;
@@ -175,17 +175,32 @@ public static class Updater2
     }
 
     // ---------- telechargement verifie
+    // Telecharge le dossier compresse, verifie son empreinte, l'extrait (chemins sortant du dossier refuses) et renvoie le chemin de ClaudeSync2.exe extrait.
     public static string Download(UpdateInfo u, string destDir)
     {
         if (!IsHttps(u.Url)) throw new IOException("adresse non HTTPS refusee");
         byte[] data = Http(u.Url);
         string got = Installer2.Hex(SHA256.Create().ComputeHash(data));
         if (!got.Equals(u.Sha256, StringComparison.OrdinalIgnoreCase)) throw new IOException("empreinte SHA-256 incorrecte : fichier refuse");
-        if (data.Length < 4096 || data[0] != (byte)'M' || data[1] != (byte)'Z') throw new IOException("ce n'est pas un programme Windows");
-        Directory.CreateDirectory(destDir);
-        string path = Path.Combine(destDir, "Claude-Sync-Setup-" + u.Version + ".exe");
-        File.WriteAllBytes(path, data);
-        return path;
+        if (data.Length < 100 || data[0] != (byte)'P' || data[1] != (byte)'K') throw new IOException("ce n'est pas un dossier compresse (zip)");
+        string dir = Path.Combine(destDir, "Claude-Sync-" + u.Version);
+        if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        Directory.CreateDirectory(dir);
+        string root = Path.GetFullPath(dir).TrimEnd('\\') + "\\";
+        using (var za = new System.IO.Compression.ZipArchive(new MemoryStream(data), System.IO.Compression.ZipArchiveMode.Read))
+            foreach (var e in za.Entries)
+            {
+                if (e.FullName.EndsWith("/") || e.Name.Length == 0) continue;
+                string full = Path.GetFullPath(Path.Combine(dir, e.FullName.Replace('/', '\\')));
+                if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) throw new IOException("chemin refuse dans l'archive : " + e.FullName);
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                using (var es = e.Open()) using (var fs = File.Create(full)) es.CopyTo(fs);
+            }
+        string exe = Path.Combine(dir, Installer2.ExeName);
+        if (!File.Exists(exe) || new FileInfo(exe).Length < 4096) throw new IOException("ClaudeSync2.exe absent de l'archive");
+        using (var f = File.OpenRead(exe)) if (f.ReadByte() != 'M' || f.ReadByte() != 'Z') throw new IOException("ClaudeSync2.exe n'est pas un programme Windows");
+        if (Installer2.SiblingPayloadDir(exe) == null) throw new IOException("outils ou programme serveur absents de l'archive");
+        return exe;
     }
 
     // Lance l'installeur telecharge (il arrete l'ancienne version, remplace les fichiers et relance Claude-Sync) : l'appelant doit alors se fermer.

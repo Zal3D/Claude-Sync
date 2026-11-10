@@ -71,6 +71,7 @@ public static class Cs2
         AppModel.DefaultProjects = a.Opt("projets"); AppModel.DefaultFolder = a.Opt("folder"); AppModel.DefaultPc = a.Opt("pc");
         int.TryParse(a.Opt("exit-after"), out int after);
         var app = new TrayApp2(model, a.Has("hidden"), after, a.Has("no-watch"));
+        Installer2.ListenForQuit(AppDomain.CurrentDomain.BaseDirectory, app.RequestQuit);
         System.Windows.Forms.Application.Run(app);
         return 0;
     }
@@ -101,7 +102,7 @@ public static class Cs2
         var t = TargetOf(a);
         if (!a.Has("silent")) return RunSetupWindow(t, a.Opt("shot"), a.Opt("lang"));
         Loc.Detect(a.Opt("lang"));
-        var r = Installer2.Install(t, new InstallOptions { Startup = !a.Has("no-startup"), Launch = a.Has("launch") }, (m, p) => Console.WriteLine("  - " + m));
+        var r = Installer2.Install(t, new InstallOptions { Startup = a.Has("startup"), Launch = a.Has("launch") }, (m, p) => Console.WriteLine("  - " + m));
         Console.WriteLine(r.Message + (r.Ok ? "  (" + r.Written + " ecrit(s), " + r.Unchanged + " inchange(s), " + r.Removed + " retire(s))" : ""));
         return r.Ok ? 0 : 2;
     }
@@ -140,7 +141,7 @@ public static class Cs2
     public static int Main(string[] args)
     {
         // Sans argument : programme telecharge (hors dossier d'installation) = installation ; sinon application residente (raccourci, demarrage de Windows)
-        if (args.Length == 0) args = new[] { Installer2.HasEmbeddedPayload && !Installer2.IsInstalledCopy(InstallTarget.Default()) ? "install" : "run" };
+        if (args.Length == 0) args = new[] { Installer2.HasPayload && !Installer2.IsInstalledCopy(InstallTarget.Default()) ? "install" : "run" };
         // SSH lance ce programme pour obtenir le mot de passe : il le lit dans l'environnement (jamais sur le disque) et le renvoie.
         // ssh lance ce programme avec le TEXTE DE LA QUESTION comme seul argument (pas "--askpass") : c'est la variable CS_ASKPASS_MODE, donnee
         // uniquement au processus ssh de l'inscription, qui declenche ce mode (defaut trouve avec un vrai mot de passe : l'inscription etait refusee).
@@ -200,7 +201,7 @@ public static class Cs2
             "  enroll --host H --user U [--port 22] [--folder claude-sync] [--pc NOM] [--projets C:\\Projets] [--fingerprint SHA256:... | --yes] [--admin-key FICHIER [--admin-login root@hote]]   (mot de passe : variable CS_PASSWORD, sinon saisie)\n" +
             "  sync [--apply] [--claude auto|yes|no|idle] [--wait-lock SECONDES] [--no-pull]    (sans --apply : simulation)\n" +
             "  update [--source proprietaire/depot] [--install]\n" +
-            "  install [--silent] [--no-startup] [--launch] | uninstall [--silent] [--purge-state]   (--sandbox DOSSIER : essai hors du vrai profil)\n" +
+            "  install [--silent] [--startup] [--launch] | uninstall [--silent] [--purge-state]   (--sandbox DOSSIER : essai hors du vrai profil)\n" +
             "  migrate-v1 [--from DOSSIER_V1] [--apply] [--allow-running]   (reprend la memoire de la V1 : meme hub obligatoire ; sans --apply : simulation)\n" +
             "  ping | conflicts | resolve N local|hub|both [--claude no] | trash | restore N [--claude no] | purge [--days 30]\n" +
             "  option commune : --state DOSSIER (defaut : %LOCALAPPDATA%\\ClaudeSync2)");

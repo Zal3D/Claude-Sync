@@ -99,18 +99,27 @@ static class UpdateTests
         T.Run("T184 telechargement : l'empreinte doit correspondre, sinon le fichier est refuse", delegate
         {
             string dest = Path.Combine(root, "dl");
-            var good = new UpdateInfo { Version = "2.0.1", Url = "https://x.org/s.exe", Sha256 = h };
-            Updater2.Http = u => exe;
+            byte[] zipOk = ZipOf(("ClaudeSync2.exe", exe), ("outils/win-x64/rsync.exe", new byte[] { 1 }), ("serveur/claudesync-serveur", new byte[] { 2 }));
+            string hz = Sha(zipOk);
+            var good = new UpdateInfo { Version = "2.0.1", Url = "https://x.org/s.zip", Sha256 = hz };
+            Updater2.Http = u => zipOk;
             string path = Updater2.Download(good, dest);
-            T.Check("fichier conforme : enregistre, octet pour octet", File.Exists(path) && File.ReadAllBytes(path).SequenceEqual(exe) && path.Contains("2.0.1"));
-            var other = new UpdateInfo { Version = "2.0.2", Url = "https://x.org/s.exe", Sha256 = Sha(new byte[] { 1, 2, 3 }) };
-            T.Check("empreinte differente : refuse, rien d'ecrit", Throws(() => Updater2.Download(other, dest)) && !File.Exists(Path.Combine(dest, "Claude-Sync-Setup-2.0.2.exe")));
-            var bad = (byte[])exe.Clone(); bad[0] = (byte)'X'; string hb = Sha(bad);
-            Updater2.Http = u => bad;
-            T.Check("pas un programme Windows (MZ) : refuse meme avec la bonne empreinte", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.3", Url = "https://x.org/s.exe", Sha256 = hb }, dest)));
-            T.Check("adresse HTTP refusee sans meme telecharger", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.4", Url = "http://x.org/s.exe", Sha256 = h }, dest)));
+            T.Check("archive conforme : extraite, ClaudeSync2.exe retrouve avec ses outils a cote", File.Exists(path) && File.ReadAllBytes(path).SequenceEqual(exe) && path.Contains("2.0.1") && Installer2.SiblingPayloadDir(path) != null);
+            byte[] zipEvil = ZipOf(("ClaudeSync2.exe", exe), ("../evil.txt", new byte[] { 9 }));
+            Updater2.Http = u => zipEvil;
+            T.Check("archive dont un chemin sort du dossier : refusee", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.6", Url = "https://x.org/s.zip", Sha256 = Sha(zipEvil) }, dest)) && !File.Exists(Path.Combine(dest, "evil.txt")));
+            byte[] zipSansOutils = ZipOf(("ClaudeSync2.exe", exe));
+            Updater2.Http = u => zipSansOutils;
+            T.Check("archive sans outils ni serveur : refusee", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.7", Url = "https://x.org/s.zip", Sha256 = Sha(zipSansOutils) }, dest)));
+            Updater2.Http = u => zipOk;
+            var other = new UpdateInfo { Version = "2.0.2", Url = "https://x.org/s.zip", Sha256 = Sha(new byte[] { 1, 2, 3 }) };
+            T.Check("empreinte differente : refuse, rien d'extrait", Throws(() => Updater2.Download(other, dest)) && !Directory.Exists(Path.Combine(dest, "Claude-Sync-2.0.2")));
+            byte[] notZip = new byte[5000]; notZip[0] = (byte)'M'; notZip[1] = (byte)'Z';
+            Updater2.Http = u => notZip;
+            T.Check("pas une archive zip : refuse meme avec la bonne empreinte", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.3", Url = "https://x.org/s.zip", Sha256 = Sha(notZip) }, dest)));
+            T.Check("adresse HTTP refusee sans meme telecharger", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.4", Url = "http://x.org/s.zip", Sha256 = hz }, dest)));
             Updater2.Http = u => new byte[100];
-            T.Check("fichier minuscule refuse", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.5", Url = "https://x.org/s.exe", Sha256 = Sha(new byte[100]) }, dest)));
+            T.Check("fichier minuscule refuse", Throws(() => Updater2.Download(new UpdateInfo { Version = "2.0.5", Url = "https://x.org/s.zip", Sha256 = Sha(new byte[100]) }, dest)));
         });
 
         T.Run("T185 textes de mise a jour : francais et anglais", delegate
@@ -118,6 +127,14 @@ static class UpdateTests
             var keys = Loc.Keys.Where(k => k.StartsWith("update.") || k == "tray.update").ToList();
             T.Check("une dizaine de textes, deux langues chacun", keys.Count >= 10 && keys.All(k => Loc.Fr(k).Length > 0 && Loc.En(k).Length > 0), keys.Count.ToString());
         });
+    }
+
+    static byte[] ZipOf(params (string name, byte[] data)[] files)
+    {
+        using var ms = new MemoryStream();
+        using (var za = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, true))
+            foreach (var (name, data) in files) { var e = za.CreateEntry(name); using var s = e.Open(); s.Write(data, 0, data.Length); }
+        return ms.ToArray();
     }
 
     static bool Throws(Action a) { try { a(); return false; } catch (Exception) { return true; } }
