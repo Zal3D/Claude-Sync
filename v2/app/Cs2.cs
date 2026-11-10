@@ -68,6 +68,7 @@ public static class Cs2
         AppModel model = demo ? AppModel.DemoModel(Path.Combine(Path.GetTempPath(), "cs2-ui-demo")) : new AppModel(state);
         Loc.Detect(model.Config?.Language);
         if (!first) { Console.WriteLine(Loc.S("tray.already")); return 20; }
+        AppModel.DefaultProjects = a.Opt("projets"); AppModel.DefaultFolder = a.Opt("folder"); AppModel.DefaultPc = a.Opt("pc");
         int.TryParse(a.Opt("exit-after"), out int after);
         var app = new TrayApp2(model, a.Has("hidden"), after, a.Has("no-watch"));
         System.Windows.Forms.Application.Run(app);
@@ -141,7 +142,9 @@ public static class Cs2
         // Sans argument : programme telecharge (hors dossier d'installation) = installation ; sinon application residente (raccourci, demarrage de Windows)
         if (args.Length == 0) args = new[] { Installer2.HasEmbeddedPayload && !Installer2.IsInstalledCopy(InstallTarget.Default()) ? "install" : "run" };
         // SSH lance ce programme pour obtenir le mot de passe : il le lit dans l'environnement (jamais sur le disque) et le renvoie.
-        if (args.Length > 0 && args[0] == "--askpass")
+        // ssh lance ce programme avec le TEXTE DE LA QUESTION comme seul argument (pas "--askpass") : c'est la variable CS_ASKPASS_MODE, donnee
+        // uniquement au processus ssh de l'inscription, qui declenche ce mode (defaut trouve avec un vrai mot de passe : l'inscription etait refusee).
+        if ((args.Length > 0 && args[0] == "--askpass") || Environment.GetEnvironmentVariable("CS_ASKPASS_MODE") == "1")
         {
             // octets UTF-8 directs : la page de codes de la console deformerait les accents du mot de passe
             byte[] b = new UTF8Encoding(false).GetBytes((Environment.GetEnvironmentVariable("CS_ASKPASS_VALUE") ?? "") + "\n");

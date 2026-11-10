@@ -128,6 +128,7 @@ for p in /usr/bin/rrsync /usr/lib/rsync/rrsync /usr/share/doc/rsync/support/rrsy
                 a.AddRange(new[] { "-o", "PreferredAuthentications=password,keyboard-interactive", "-o", "PubkeyAuthentication=no", "-o", "NumberOfPasswordPrompts=1" });
                 psi.EnvironmentVariables["SSH_ASKPASS"] = RsyncUtil.Cyg(r.AskpassExe);
                 psi.EnvironmentVariables["SSH_ASKPASS_REQUIRE"] = "force";
+                psi.EnvironmentVariables["CS_ASKPASS_MODE"] = "1";          // ssh appelle le programme avec la question en argument : ce mode le reconnait
                 psi.EnvironmentVariables["DISPLAY"] = "none";
                 psi.EnvironmentVariables["CS_ASKPASS_VALUE"] = r.Password ?? "";
             }
@@ -189,7 +190,7 @@ for p in /usr/bin/rrsync /usr/lib/rsync/rrsync /usr/share/doc/rsync/support/rrsy
         IRemoteShell shell = injected ?? new SshShell(r, known);
         Step("Controle du serveur");
         var (c0, out0, err0) = shell.RunScript(ControlScript);
-        if (c0 != 0 && out0.Trim().Length == 0) return Fail(err0.Contains("Permission denied") ? "Utilisateur ou mot de passe refuse." : "Connexion impossible : " + err0);
+        if (c0 != 0 && out0.Trim().Length == 0) return Fail(err0.Contains("Permission denied") ? "Acces refuse : utilisateur ou mot de passe incorrect, ou ce compte n'a pas le droit de se connecter en SSH sur le serveur (verifiez ses autorisations SSH cote serveur)." : "Connexion impossible : " + err0);
         var info = ParseControl(out0);
         var problems = Problems(info);
         if (problems.Count > 0) return Fail("Le serveur n'est pas pret : " + string.Join(" ", problems));

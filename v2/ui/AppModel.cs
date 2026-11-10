@@ -12,12 +12,14 @@ namespace ClaudeSync.V2;
 
 public static class V2Info
 {
-    public const string Version = "2.0.0-beta.2";
+    public const string Version = "2.0.0-beta.3";
 }
 
 public sealed class AppModel
 {
     public readonly string StateDir;
+    public static string? DefaultFolder, DefaultPc;   // idem : dossier du serveur et nom du PC proposes
+    public static string? DefaultProjects;      // essais (run --projets) : dossier propose a la place de C:\Projets dans le formulaire de connexion
     public AppConfig? Config;
     public UiState State = UiState.Waiting;
     public string Phase = Loc.S("home.first"), Detail = "";

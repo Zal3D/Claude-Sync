@@ -74,6 +74,11 @@ static class AppTests
             T.Check("le programme renvoie le mot de passe de l'environnement", code == 0 && o.TrimEnd('\r', '\n') == "s3cr&t é", o);
             var (c2, o2) = RunApp("--askpass", new Dictionary<string, string> { ["CS_ASKPASS_VALUE"] = "" });
             T.Check("environnement vide -> ligne vide, pas de plantage", c2 == 0 && o2.Trim() == "");
+            // La vraie forme de l'appel de ssh : AUCUN "--askpass", seulement le texte de la question (defaut trouve avec un vrai mot de passe)
+            var (c3, o3) = RunApp("\"claudesync@serveur.exemple's password: \"", new Dictionary<string, string> { ["CS_ASKPASS_MODE"] = "1", ["CS_ASKPASS_VALUE"] = "pässw0rd" });
+            T.Check("appel comme le fait ssh (question en argument) : renvoie le mot de passe", c3 == 0 && o3.TrimEnd('\r', '\n') == "pässw0rd", c3 + " " + o3);
+            var (c4, o4) = RunApp("ping", new Dictionary<string, string> { ["CS_ASKPASS_MODE"] = "" });
+            T.Check("sans CS_ASKPASS_MODE, un argument ordinaire reste une commande normale", !o4.Contains("pässw0rd") && o4.Length > 0, o4);
         });
 
         T.Run("T106 application residente : demarre avec son icone, s'arrete seule, refuse un second lancement", delegate

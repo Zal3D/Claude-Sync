@@ -389,7 +389,7 @@ sealed class ServerPage : PageBase
     public override void Build()
     {
         string h0 = host?.Text ?? M.Config?.Host ?? "", p0 = port?.Text ?? (M.Config?.Port ?? 22).ToString(), u0 = user?.Text ?? M.Config?.User ?? "";
-        string f0 = folder?.Text ?? (M.Config != null ? M.Config.Folder : "claude-sync"), pr0 = projects?.Text ?? M.Config?.ProjetsRoot.Replace('/', '\\') ?? @"C:\Projets", n0 = pc?.Text ?? M.Config?.Pc ?? Environment.MachineName;
+        string f0 = folder?.Text ?? (M.Config != null ? M.Config.Folder : AppModel.DefaultFolder ?? "claude-sync"), pr0 = projects?.Text ?? M.Config?.ProjetsRoot.Replace('/', '\\') ?? AppModel.DefaultProjects ?? @"C:\Projets", n0 = pc?.Text ?? M.Config?.Pc ?? AppModel.DefaultPc ?? Environment.MachineName;
         string pw0 = pass?.Text ?? "";
         Clear(); SuspendLayout();
         int mg = D(24), w = ClientSize.Width - 2 * mg;
