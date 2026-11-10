@@ -510,6 +510,7 @@ def rep(o, payload=b''):
             WatcherTests.Run();
             SetupTests.Run();
             UpdateTests.Run();
+            MigrateTests.Run();
             UiTests.Run();
             ServerExtraTests.Run();
             PlannerTests.Run();

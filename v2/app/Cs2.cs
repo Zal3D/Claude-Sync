@@ -178,6 +178,7 @@ public static class Cs2
             if (cfg.ToolsDir.Length == 0 || !File.Exists(Path.Combine(cfg.ToolsDir, "rsync.exe"))) cfg.ToolsDir = DefaultTools();
             switch (a.Cmd)
             {
+                case "migrate-v1": return MigrateV1(a, cfg, state);
                 case "ping": return Ping(cfg);
                 case "sync": return Sync(a, cfg, state);
                 case "conflicts": return Conflicts(cfg, state);
@@ -200,6 +201,7 @@ public static class Cs2
             "  sync [--apply] [--claude auto|yes|no|idle] [--wait-lock SECONDES] [--no-pull]    (sans --apply : simulation)\n" +
             "  update [--source proprietaire/depot] [--install]\n" +
             "  install [--silent] [--no-startup] [--launch] | uninstall [--silent] [--purge-state]   (--sandbox DOSSIER : essai hors du vrai profil)\n" +
+            "  migrate-v1 [--from DOSSIER_V1] [--apply] [--allow-running]   (reprend la memoire de la V1 : meme hub obligatoire ; sans --apply : simulation)\n" +
             "  ping | conflicts | resolve N local|hub|both [--claude no] | trash | restore N [--claude no] | purge [--days 30]\n" +
             "  option commune : --state DOSSIER (defaut : %LOCALAPPDATA%\\ClaudeSync2)");
         return 0;
@@ -213,6 +215,18 @@ public static class Cs2
         o.IndexDir ??= ClaudePaths.FindIndexDir(o.Profile);
         cfg?.Invoke(o);
         return (new Engine2(o, prov.Get(), c.NewTransport()), prov);
+    }
+
+    // migrate-v1 [--from DOSSIER_V1] [--apply] [--allow-running] : reprend la memoire de la V1 (meme hub obligatoire) ; sans --apply : simulation
+    static int MigrateV1(Args a, AppConfig c, string state)
+    {
+        string from = a.Opt("from") ?? Migrator.DefaultV1Dir;
+        string? hubId;
+        using (var p = HubProvider.ForConfig(c)) hubId = p.Get().Hello().HubId;
+        var r = Migrator.Run(from, state, hubId, a.Has("apply"), a.Has("allow-running"));
+        Console.WriteLine(r.Message);
+        foreach (var kv in r.BaseLines) Console.WriteLine("  " + kv.Key + " : " + kv.Value + " fichiers connus");
+        return r.Ok ? 0 : 4;
     }
 
     static int Ping(AppConfig c)
