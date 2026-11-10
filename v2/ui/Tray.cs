@@ -148,6 +148,7 @@ sealed class TrayApp2 : ApplicationContext
     void HandleLaunch(bool checkIncoming)
     {
         handling = true;
+        Log.W("Ouverture de Claude detectee : prise en charge (fermeture, synchronisation, relance)" + (checkIncoming ? " [fenetre rouverte]" : "") + ".");
         Task.Run(() =>
         {
             try
@@ -172,7 +173,7 @@ sealed class TrayApp2 : ApplicationContext
                 bool slow = LinkQuality.IsSlow(p.ms, cfg);
                 M.PhaseOverride = slow ? Loc.S("tray.phase.slow", p.ms, cfg.LaunchWaitSeconds) : Loc.S("tray.phase.sync"); M.Raise();
                 OnUi(() => ShowWindow(PageId.Home));
-                ClaudeDesktop.Kill();
+                ClaudeDesktop.Kill(); Log.W("Claude ferme par Claude-Sync, synchronisation en cours (liaison " + p.ms + " ms).");
                 int code;
                 if (!slow) code = M.RunSyncBlocking("no");
                 else
@@ -191,7 +192,8 @@ sealed class TrayApp2 : ApplicationContext
                 M.PhaseOverride = null;
                 W.SyncDone(DateTime.Now, code);
                 W.LaunchHandled(DateTime.Now, true);
-                ClaudeDesktop.Relaunch();
+                Log.W("Synchronisation avant ouverture terminee (code " + code + "), relance de Claude.");
+                ClaudeDesktop.Relaunch(); Log.W("Claude relance.");
                 if (code == 1) Balloon(Loc.S("tray.conflicts"), ToolTipIcon.Warning);
                 else if (code == 0) OnUi(() => win.Hide());
             }

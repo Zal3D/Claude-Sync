@@ -8,7 +8,7 @@
 Garde vos **conversations Claude Desktop** (sessions Cowork / Code) et votre **dossier de projets** identiques sur plusieurs PC Windows,
 grâce à **votre propre serveur** joint en SSH. Pas de service dans le nuage, pas de compte, rien ne sort de votre réseau.
 
-> **État : version stable 2.0.0.** Développé et testé par son auteur (essais complets en bac à sable, liaisons lentes simulées, puis usage réel). Gardez vos propres sauvegardes.
+> **État : version stable 2.0.1.** Développé et testé par son auteur (essais complets en bac à sable, liaisons lentes simulées, puis usage réel). Gardez vos propres sauvegardes.
 
 ### Fonctionnement
 
@@ -58,7 +58,7 @@ voir [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). « Claude » est une marq
 Keep your **Claude Desktop conversations** (Cowork / Code sessions) and your **project folder** identical on several Windows PCs,
 through **your own server** reached over SSH. No cloud service, no account, nothing leaves your network.
 
-> **Status: stable release 2.0.0.** Developed and tested by its author (full sandbox trials, simulated slow links, then real use). Keep your own backups.
+> **Status: stable release 2.0.1.** Developed and tested by its author (full sandbox trials, simulated slow links, then real use). Keep your own backups.
 
 ### How it works
 

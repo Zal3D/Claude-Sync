@@ -54,16 +54,18 @@ static class AppTests
             T.Check("dossier d'etat V2 distinct de celui de la V1", AppConfig.DefaultStateDir.EndsWith("ClaudeSync2"));
         });
 
-        T.Run("T100c reglages automatiques : DESACTIVES par defaut (rien ne ferme Claude ni n'installe sans demande), memorises et relus", delegate
+        T.Run("T100c reglages automatiques : prise en charge de l'ouverture de Claude ACTIVEE par defaut (testee en reel), mise a jour automatique DESACTIVEE, memorises et relus", delegate
         {
             var neuf = new AppConfig { Host = "h", User = "u" };
-            T.Check("par defaut : pas de prise en charge de l'ouverture de Claude, pas de mise a jour automatique", !neuf.BlockLaunch && !neuf.AutoUpdate);
+            T.Check("par defaut : prise en charge de l'ouverture active, mise a jour automatique inactive", neuf.BlockLaunch && !neuf.AutoUpdate);
             string d = Path.Combine(Env.Tmp, "cfg-auto"); neuf.Save(d);
             var r0 = AppConfig.Load(d)!;
-            T.Check("un fichier sans ces cles : toujours desactive", !r0.BlockLaunch && !r0.AutoUpdate);
-            neuf.BlockLaunch = true; neuf.AutoUpdate = true; neuf.Save(d);
+            T.Check("memorises tels quels", r0.BlockLaunch && !r0.AutoUpdate);
+            neuf.BlockLaunch = false; neuf.AutoUpdate = true; neuf.Save(d);
             var r1 = AppConfig.Load(d)!;
-            T.Check("actives par l'utilisateur : memorise et relu", r1.BlockLaunch && r1.AutoUpdate && File.ReadAllText(AppConfig.FileOf(d)).Contains("mises_a_jour_auto"));
+            T.Check("choix de l'utilisateur (desactive / active) : memorise et relu, y compris le refus", !r1.BlockLaunch && r1.AutoUpdate && File.ReadAllText(AppConfig.FileOf(d)).Contains("mises_a_jour_auto"));
+            File.WriteAllText(AppConfig.FileOf(d), "{\"hote\":\"h\",\"utilisateur\":\"u\"}");
+            T.Check("une configuration ancienne sans ces cles prend les valeurs par defaut", AppConfig.Load(d)!.BlockLaunch && !AppConfig.Load(d)!.AutoUpdate);
         });
 
         T.Run("T100b dossiers locaux ecrits avec des / (config.json) : le dossier de projets est bien analyse (defaut trouve par l'essai en bac a sable : 0 fichier vu)", delegate

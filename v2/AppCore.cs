@@ -17,7 +17,7 @@ public sealed class AppConfig
     public string? IndexDir;                      // dossier des sessions de Claude Desktop (detecte si absent)
     public int SlowMs = 120;                      // au-dela : liaison lente (mode econome a l'ouverture de Claude)
     public int LaunchWaitSeconds = 120;
-    public bool BlockLaunch;                      // a l'ouverture de Claude : le fermer, synchroniser, le relancer (DESACTIVE par defaut : choix de l'utilisateur, Options)
+    public bool BlockLaunch = true;               // a l'ouverture de Claude : le fermer, synchroniser, le relancer (ACTIVE par defaut, testee en reel ; desactivable dans Options)
     public bool AutoUpdate;                       // installer les mises a jour toutes seules, quand l'application est au repos (DESACTIVE par defaut)
     public string UpdateSource = "";             // depot GitHub (ou autre) des mises a jour
     public string Language = "";                  // "" = langue de Windows

@@ -127,7 +127,7 @@ public static class Loc
         A("opt.startup", "Démarrer avec Windows", "Start with Windows");
         A("opt.startup.managed", "Disponible une fois Claude-Sync installé (menu Démarrer).", "Available once Claude-Sync is installed (Start menu).");
         A("opt.takeover", "Synchroniser avant l'ouverture de Claude", "Sync before Claude opens");
-        A("opt.takeover.sub", "Ferme puis relance Claude à son ouverture, le temps de synchroniser. Désactivé par défaut.", "Closes then relaunches Claude when it opens, just long enough to sync. Off by default.");
+        A("opt.takeover.sub", "Ferme puis relance Claude à son ouverture, le temps de synchroniser (quelques secondes). Activé par défaut.", "Closes then relaunches Claude when it opens, just long enough to sync (a few seconds). On by default.");
         A("opt.autoupdate", "Installer les mises à jour automatiquement", "Install updates automatically");
         A("opt.autoupdate.sub", "Seulement quand l'application est au repos (aucune synchro, aucun conflit). Désactivé par défaut.", "Only when the app is idle (no sync running, no conflict). Off by default.");
         A("opt.startup.on", "Activé", "On");
