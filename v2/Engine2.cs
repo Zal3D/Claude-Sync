@@ -560,7 +560,8 @@ public sealed class Engine2
         if (index < 1 || index > list.Count) return "Numero de conflit invalide.";
         var c = list[index - 1];
         if (choice != "local" && choice != "hub" && choice != "both") return "Choix inconnu (local | hub | both).";
-        if (ClaudeIsRunning()) return "Fermez Claude avant de resoudre un conflit.";
+        // Claude ouvert : seul "garder celle du serveur" (qui REMPLACE un fichier local) est refuse ; "garder la mienne" et "garder les deux" n'ecrasent rien ici
+        if (choice == "hub" && ClaudeIsRunning()) return "Fermez Claude avant de garder la version du serveur (elle remplacerait le fichier local).";
         var s = Sets().First(x => x.Name == c.Set);
         string lp = LocalPath(s, c.Rel);
         try

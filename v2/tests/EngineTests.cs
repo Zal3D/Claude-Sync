@@ -170,6 +170,24 @@ static class EngineTests
             }
         });
 
+        T.Run("T84b conflit avec Claude OUVERT : 'garder la mienne' fonctionne, 'garder celle du serveur' est refuse (defaut trouve en reel : le bouton ne faisait rien)", delegate
+        {
+            var (hub, a, b) = Duo(("g1.txt", "base"), ("g2.txt", "base")); using (a) using (b)
+            {
+                foreach (var f in new[] { "g1.txt", "g2.txt" }) { a.Put(f, "version A " + f, DateTime.UtcNow.AddMinutes(-30)); b.Put(f, "version B " + f + "!", DateTime.UtcNow.AddMinutes(-20)); }
+                a.Sync();
+                int code = b.Sync(o => o.ClaudeRunning = "yes");
+                T.Check("conflits detectes meme avec Claude ouvert", b.E!.Conflicts.Count == 2, "code " + code);
+                string r1 = b.E!.Resolve(1, "hub");
+                T.Check("garder celle du serveur : refuse, message clair, rien d'ecrase", r1.Contains("Fermez Claude") && b.Read("g1.txt") == "version B g1.txt!", r1);
+                string r2 = b.E.Resolve(1, "local");
+                T.Check("garder la mienne : OK avec Claude ouvert, le serveur recoit ma version", r2.StartsWith("Conflit resolu") && b.HubRead("g1.txt") == "version B g1.txt!", r2);
+                string r3 = b.E.Resolve(1, "both");
+                T.Check("garder les deux : OK avec Claude ouvert", r3.StartsWith("Conflit resolu"), r3);
+                T.Check("plus aucun conflit", new StateStore(b.State).LoadConflicts().Count == 0);
+            }
+        });
+
         T.Run("T85 Claude ouvert : jamais de recuperation, les envois continuent ; Claude ferme : tout rentre", delegate
         {
             var (hub, a, b) = Duo(); using (a) using (b)

@@ -12,7 +12,7 @@ namespace ClaudeSync.V2;
 
 public static class V2Info
 {
-    public const string Version = "2.0.0-beta.5";
+    public const string Version = "2.0.0-beta.6";
 }
 
 public sealed class AppModel
@@ -166,6 +166,21 @@ public sealed class AppModel
     public UpdateInfo? Update; public string UpdateText = ""; public bool UpdateBusy;
     public event Action? UpdateStarted;                      // l'installeur telecharge est lance : l'application doit se fermer
     public string UpdateSource => string.IsNullOrWhiteSpace(Config?.UpdateSource) ? Updater2.DefaultSource : Config!.UpdateSource.Trim();
+
+    // Inscription terminee : si une version precedente de Claude-Sync (memoire dans %LOCALAPPDATA%\\ClaudeSync) pointait sur le MEME dossier de synchro,
+    // on reprend sa memoire AVANT la premiere synchro (sinon tout fichier modifie depuis sa derniere synchro serait un faux conflit). Renvoie un message ou "".
+    public string ImportPreviousVersion(AppConfig cfg)
+    {
+        try
+        {
+            string old = Migrator.DefaultV1Dir;
+            if (!Directory.Exists(old) || !Directory.GetFiles(old, "base-*.tsv").Any()) return "";
+            string? hubId; using (var p = HubProvider.ForConfig(cfg)) hubId = p.Get().Hello().HubId;
+            var rep = Migrator.Run(old, StateDir, hubId, true);
+            return rep.Ok ? rep.Message : rep.Message.Contains("tourne encore") ? rep.Message : "";
+        }
+        catch (Exception) { return ""; }
+    }
 
     public void CheckUpdate(bool force)
     {

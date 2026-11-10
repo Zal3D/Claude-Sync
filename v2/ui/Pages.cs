@@ -305,8 +305,10 @@ sealed class TrashPage : PageBase
 // ------------------------------------------------------------------------------------------------ OPTIONS
 sealed class OptionsPage : PageBase
 {
-    string linkText = "";
+    string linkText = "", lastUpd = "";
     public OptionsPage(AppModel m) : base(m) { }
+    string UpdKey() => (M.Update?.Version ?? "") + "|" + M.UpdateText + "|" + M.UpdateBusy;
+    public override void ModelChanged() { if (UpdKey() != lastUpd) Ui(Build); }        // reconstruit seulement quand l'etat des mises a jour change (pas a chaque progression de synchro)
 
     public override void Build()
     {
@@ -369,9 +371,12 @@ sealed class OptionsPage : PageBase
         st.Click += delegate { try { Installer2.SetStartup(tg, !startOn); } catch (Exception) { } Go(PageId.Options); };
         s3.Controls.Add(st);
         if (!installedHere) s3.Controls.Add(Lbl(Loc.S("opt.startup.managed"), F(12), Theme.Subtle, cb, new Rectangle(pad, D(84), iw - 2 * pad, D(18))));
-        var upd = Btn(Loc.S("opt.update"), false, new Rectangle(pad, D(104), D(240), D(34)), cb);
-        var updMsg = Lbl("", F(12), Theme.Subtle, cb, new Rectangle(pad, D(144), iw - 2 * pad, D(22)));
-        upd.Click += delegate { updMsg.Text = Loc.S("opt.update.soon"); };
+        // mises a jour : meme comportement que la page A propos (verification a la demande, installation seulement sur clic)
+        bool updOn = Updater2.SourceUrl(M.UpdateSource) != null; var up = M.Update; lastUpd = UpdKey();
+        var upd = Btn(up != null ? Loc.S("update.install", up.Version) : Loc.S("opt.update"), up != null, new Rectangle(pad, D(104), D(280), D(34)), cb);
+        upd.Enabled = updOn && !M.UpdateBusy;
+        var updMsg = Lbl(!updOn ? Loc.S("update.off") : M.UpdateText, F(12), up != null ? Theme.Accent : Theme.Subtle, cb, new Rectangle(pad, D(144), iw - 2 * pad, D(40)), ContentAlignment.TopLeft);
+        upd.Click += delegate { if (M.Update != null) M.InstallUpdate(); else M.CheckUpdate(true); };
         s3.Controls.Add(upd); s3.Controls.Add(updMsg);
         host.Controls.Add(s3);
         ResumeLayout();
@@ -448,11 +453,12 @@ sealed class ServerPage : PageBase
         Task.Run(() =>
         {
             var r = Enroller.Run(req);
+            string imported = r.Ok && r.Config != null ? M.ImportPreviousVersion(r.Config) : "";
             Ui(() =>
             {
                 running = false;
                 if (!r.Ok) { go!.Enabled = true; SetStatus(r.Message, Theme.Bad); return; }
-                pass!.Text = ""; M.Reload(); SetStatus(Loc.S("srv.done"), Theme.Ok);
+                pass!.Text = ""; M.Reload(); SetStatus(imported.Length > 0 ? imported : Loc.S("srv.done"), Theme.Ok);
                 M.SyncNow(); Go(PageId.Home);
             });
         });
