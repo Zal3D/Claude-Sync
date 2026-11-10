@@ -1,0 +1,289 @@
+{
+  "depot": "https://repo.msys2.org/msys/x86_64/",
+  "note": "Empreintes SHA-256 des paquets MSYS2 d'origine (verifiees contre msys.db au telechargement). Les 'source' sont les archives de sources correspondantes du depot MSYS2.",
+  "paquets": [
+    {
+      "paquet": "gcc-libs",
+      "version": "16.2.0-1",
+      "fichier": "gcc-libs-16.2.0-1-x86_64.pkg.tar.zst",
+      "sha256": "50e1bbbb1b4186ba1ed8c08cdbb5c0a8c2343e4b5747bace24273e26fb148471",
+      "taille": 1080310,
+      "url": "https://repo.msys2.org/msys/x86_64/gcc-libs-16.2.0-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LGPL-2.1-or-later AND GPL-3.0-or-later WITH GCC-exception-3.1 AND GFDL-1.3-or-later"
+      ],
+      "site": "https://gcc.gnu.org/",
+      "source": "https://repo.msys2.org/msys/sources/gcc-16.2.0-1.src.tar.zst",
+      "fournit": [
+        "msys-gcc_s-seh-1.dll"
+      ]
+    },
+    {
+      "paquet": "heimdal-libs",
+      "version": "7.8.0-8",
+      "fichier": "heimdal-libs-7.8.0-8-x86_64.pkg.tar.zst",
+      "sha256": "f3542819b579fffe55ca8535db20a39dede731422f04a17246088316f4ed32fd",
+      "taille": 855780,
+      "url": "https://repo.msys2.org/msys/x86_64/heimdal-libs-7.8.0-8-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LicenseRef-Heimdal"
+      ],
+      "site": "https://www.h5l.org/",
+      "source": "https://repo.msys2.org/msys/sources/heimdal-7.8.0-8.src.tar.zst",
+      "fournit": [
+        "msys-asn1-8.dll",
+        "msys-com_err-1.dll",
+        "msys-gssapi-3.dll",
+        "msys-hcrypto-4.dll",
+        "msys-heimbase-1.dll",
+        "msys-heimntlm-0.dll",
+        "msys-hx509-5.dll",
+        "msys-krb5-26.dll",
+        "msys-roken-18.dll",
+        "msys-wind-0.dll"
+      ]
+    },
+    {
+      "paquet": "libiconv",
+      "version": "1.19-1",
+      "fichier": "libiconv-1.19-1-x86_64.pkg.tar.zst",
+      "sha256": "0fa55ea2a6ccf97cf8c58b24b2615815e15e16e6e4e888091c263c2c83c5313d",
+      "taille": 718353,
+      "url": "https://repo.msys2.org/msys/x86_64/libiconv-1.19-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "LGPL"
+      ],
+      "site": "https://www.gnu.org/software/libiconv/",
+      "source": "https://repo.msys2.org/msys/sources/libiconv-1.19-1.src.tar.zst",
+      "fournit": [
+        "msys-iconv-2.dll"
+      ]
+    },
+    {
+      "paquet": "libidn2",
+      "version": "2.3.8-1",
+      "fichier": "libidn2-2.3.8-1-x86_64.pkg.tar.zst",
+      "sha256": "55e0de96b893e9f67f14a4283d411fc2a45d7b59333bc16e2a9b16e5bfc9282f",
+      "taille": 150443,
+      "url": "https://repo.msys2.org/msys/x86_64/libidn2-2.3.8-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "GPL3",
+        "LGPL"
+      ],
+      "site": "https://www.gnu.org/software/libidn/#libidn2",
+      "source": "https://repo.msys2.org/msys/sources/libidn2-2.3.8-1.src.tar.zst",
+      "fournit": [
+        "msys-idn2-0.dll"
+      ]
+    },
+    {
+      "paquet": "libintl",
+      "version": "0.22.5-1",
+      "fichier": "libintl-0.22.5-1-x86_64.pkg.tar.zst",
+      "sha256": "336d66b9d95cf9c1804958f8e260762a3e83bf158ed5981f783bc772a31073cf",
+      "taille": 50537,
+      "url": "https://repo.msys2.org/msys/x86_64/libintl-0.22.5-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "GPL"
+      ],
+      "site": "https://www.gnu.org/software/gettext/",
+      "source": "https://repo.msys2.org/msys/sources/gettext-0.22.5-1.src.tar.zst",
+      "fournit": [
+        "msys-intl-8.dll"
+      ]
+    },
+    {
+      "paquet": "liblz4",
+      "version": "1.11.0-1",
+      "fichier": "liblz4-1.11.0-1-x86_64.pkg.tar.zst",
+      "sha256": "37e03980a8eb56166eaadbebf9042ec7d1aefc06a303deca0e3136ac7e26f3f0",
+      "taille": 79701,
+      "url": "https://repo.msys2.org/msys/x86_64/liblz4-1.11.0-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:GPL-2.0-or-later"
+      ],
+      "site": "https://lz4.github.io/lz4/",
+      "source": "https://repo.msys2.org/msys/sources/lz4-1.11.0-1.src.tar.zst",
+      "fournit": [
+        "msys-lz4-1.dll"
+      ]
+    },
+    {
+      "paquet": "libopenssl",
+      "version": "3.6.5-1",
+      "fichier": "libopenssl-3.6.5-1-x86_64.pkg.tar.zst",
+      "sha256": "05f6cc946f0dde3aecc3632007fa1d874e40720226117b750327bc2a01846325",
+      "taille": 2096427,
+      "url": "https://repo.msys2.org/msys/x86_64/libopenssl-3.6.5-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:Apache-2.0"
+      ],
+      "site": "https://openssl-library.org",
+      "source": "https://repo.msys2.org/msys/sources/openssl-3.6.5-1.src.tar.zst",
+      "fournit": [
+        "msys-crypto-3.dll"
+      ]
+    },
+    {
+      "paquet": "libsqlite",
+      "version": "3.54.1-1",
+      "fichier": "libsqlite-3.54.1-1-x86_64.pkg.tar.zst",
+      "sha256": "745dc29666363a9e8b888531418ef0687c6572808ff10d860750121d4a5257c6",
+      "taille": 765544,
+      "url": "https://repo.msys2.org/msys/x86_64/libsqlite-3.54.1-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LicenseRef-Sqlite"
+      ],
+      "site": "https://www.sqlite.org/",
+      "source": "https://repo.msys2.org/msys/sources/sqlite-3.54.1-1.src.tar.zst",
+      "fournit": [
+        "msys-sqlite3-0.dll"
+      ]
+    },
+    {
+      "paquet": "libunistring",
+      "version": "1.4.2-1",
+      "fichier": "libunistring-1.4.2-1-x86_64.pkg.tar.zst",
+      "sha256": "bcd04706d95b5e7127d39834565bceed6b400192f5fb51599745aba28d5da018",
+      "taille": 772641,
+      "url": "https://repo.msys2.org/msys/x86_64/libunistring-1.4.2-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LGPL-3.0-or-later OR GPL-2.0-or-later"
+      ],
+      "site": "https://www.gnu.org/software/libunistring/",
+      "source": "https://repo.msys2.org/msys/sources/libunistring-1.4.2-1.src.tar.zst",
+      "fournit": [
+        "msys-unistring-5.dll"
+      ]
+    },
+    {
+      "paquet": "libxcrypt",
+      "version": "4.5.2-1",
+      "fichier": "libxcrypt-4.5.2-1-x86_64.pkg.tar.zst",
+      "sha256": "e63db0aa2b708359e25f61f506e2d2c92c315febf5f88cc9f386e4ec0bdf4fa5",
+      "taille": 87371,
+      "url": "https://repo.msys2.org/msys/x86_64/libxcrypt-4.5.2-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LGPL-2.1-or-later"
+      ],
+      "site": "https://github.com/besser82/libxcrypt/",
+      "source": "https://repo.msys2.org/msys/sources/libxcrypt-4.5.2-1.src.tar.zst",
+      "fournit": [
+        "msys-crypt-2.dll"
+      ]
+    },
+    {
+      "paquet": "libxxhash",
+      "version": "0.8.4-1",
+      "fichier": "libxxhash-0.8.4-1-x86_64.pkg.tar.zst",
+      "sha256": "ba784ad117626401cd5d3ec0cf70399f9de72a63755f96c28fa2032303f9c330",
+      "taille": 39530,
+      "url": "https://repo.msys2.org/msys/x86_64/libxxhash-0.8.4-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:BSD-2-Clause"
+      ],
+      "site": "https://github.com/Cyan4973/xxHash",
+      "source": "https://repo.msys2.org/msys/sources/xxhash-0.8.4-1.src.tar.zst",
+      "fournit": [
+        "msys-xxhash-0.dll"
+      ]
+    },
+    {
+      "paquet": "libzstd",
+      "version": "1.5.7-1",
+      "fichier": "libzstd-1.5.7-1-x86_64.pkg.tar.zst",
+      "sha256": "5e370b2e725a0a7e5ff58d84653c9a0cd5a10b9cfe930f2d949a28ad2a11c1f2",
+      "taille": 399681,
+      "url": "https://repo.msys2.org/msys/x86_64/libzstd-1.5.7-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "BSD"
+      ],
+      "site": "https://facebook.github.io/zstd/",
+      "source": "https://repo.msys2.org/msys/sources/zstd-1.5.7-1.src.tar.zst",
+      "fournit": [
+        "msys-zstd-1.dll"
+      ]
+    },
+    {
+      "paquet": "msys2-runtime",
+      "version": "3.6.12-1",
+      "fichier": "msys2-runtime-3.6.12-1-x86_64.pkg.tar.zst",
+      "sha256": "c0dbaa624e29be6d08cf5c65609dca6c749431109e4572bf446a3ca9b4c4fd7c",
+      "taille": 2066848,
+      "url": "https://repo.msys2.org/msys/x86_64/msys2-runtime-3.6.12-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:GPL-3.0-or-later"
+      ],
+      "site": "https://www.cygwin.com/",
+      "source": "https://repo.msys2.org/msys/sources/msys2-runtime-3.6.12-1.src.tar.zst",
+      "fournit": [
+        "msys-2.0.dll"
+      ]
+    },
+    {
+      "paquet": "openssh",
+      "version": "10.6p2-1",
+      "fichier": "openssh-10.6p2-1-x86_64.pkg.tar.zst",
+      "sha256": "4e9cd1d3d0804c6580021a87b0f377b0fd5be5e3f7dc791cc2ca9eb5c8da9f18",
+      "taille": 1224158,
+      "url": "https://repo.msys2.org/msys/x86_64/openssh-10.6p2-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:LicenseRef-OpenSSH"
+      ],
+      "site": "https://www.openssh.com/portable.html",
+      "source": "https://repo.msys2.org/msys/sources/openssh-10.6p2-1.src.tar.zst",
+      "fournit": [
+        "ssh-keygen.exe",
+        "ssh.exe"
+      ]
+    },
+    {
+      "paquet": "popt",
+      "version": "1.19-1",
+      "fichier": "popt-1.19-1-x86_64.pkg.tar.zst",
+      "sha256": "b402bd1d03815c5e28b7ab415d8e20f487eff2460ae0271a99674eeb0d77194f",
+      "taille": 45060,
+      "url": "https://repo.msys2.org/msys/x86_64/popt-1.19-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "custom"
+      ],
+      "site": "http://rpm.org/",
+      "source": "https://repo.msys2.org/msys/sources/popt-1.19-1.src.tar.zst",
+      "fournit": [
+        "msys-popt-0.dll"
+      ]
+    },
+    {
+      "paquet": "rsync",
+      "version": "3.5.2-1",
+      "fichier": "rsync-3.5.2-1-x86_64.pkg.tar.zst",
+      "sha256": "d9c7bfb82d67ebad007c7359fdab753b60a9ef42962db4f02f6dc64d3bd6d176",
+      "taille": 426410,
+      "url": "https://repo.msys2.org/msys/x86_64/rsync-3.5.2-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:GPL-3.0-or-later"
+      ],
+      "site": "https://rsync.samba.org",
+      "source": "https://repo.msys2.org/msys/sources/rsync-3.5.2-1.src.tar.zst",
+      "fournit": [
+        "rsync.exe"
+      ]
+    },
+    {
+      "paquet": "zlib",
+      "version": "1.4-1",
+      "fichier": "zlib-1.4-1-x86_64.pkg.tar.zst",
+      "sha256": "bafd3abf8b773ec28b6571d465a53a4e7afed4824cc1eec52f3bfbd6fa556ab9",
+      "taille": 51558,
+      "url": "https://repo.msys2.org/msys/x86_64/zlib-1.4-1-x86_64.pkg.tar.zst",
+      "licence": [
+        "spdx:Zlib"
+      ],
+      "site": "https://www.zlib.net/",
+      "source": "https://repo.msys2.org/msys/sources/zlib-1.4-1.src.tar.zst",
+      "fournit": [
+        "msys-z.dll"
+      ]
+    }
+  ]
+}

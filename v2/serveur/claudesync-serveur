@@ -1,0 +1,491 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+claudesync-serveur : programme serveur de Claude-Sync V2.
+
+Lance par le PC via SSH (commande forcee, voir claudesync-entree), il tourne tant que la
+connexion SSH est ouverte et repond a des requetes JSON, une par ligne sur stdin.
+Chaque reponse est une ligne JSON sur stdout, suivie si "len" > 0 de "len" octets bruts.
+
+Principes :
+  * bibliotheque standard seulement (Python 3.6+), fonctionne sous Linux ET sous Windows (tests) ;
+  * jamais de chemin absolu ni de '..' venant du client ;
+  * le verrou est lie a CE processus : s'il meurt (PC eteint, connexion coupee,
+    silence de plus de CS_SILENCE secondes), le verrou est libere ou repris tout de suite ;
+  * rien n'est supprime definitivement ici sauf 'purge' (30 jours, sur demande).
+"""
+import os, sys, json, time, gzip, hashlib, signal, shutil, atexit, threading, queue, uuid, re
+
+VERSION = "2.0.0-dev"
+PROTO = 1                                   # version du protocole client/serveur
+ROOT = os.environ.get("CS_ROOT", "").rstrip("/\\")
+TICKS_EPOCH = 621355968000000000            # 0001-01-01 -> 1970-01-01 en ticks .NET (100 ns)
+SETS = {                                    # jeu -> dossier du hub
+    "conversations": "claude/projects",
+    "reglages": "claude/reglages",
+    "historique": "claude/file-history",
+    "projets": "projets",
+    "sessions": "desktop/sessions",
+}
+SKIP_DIRS = {".rsync-partial"}
+try:
+    LOCK_SILENCE = float(os.environ.get("CS_SILENCE", "180"))   # secondes sans requete : verrou libere
+except ValueError:
+    LOCK_SILENCE = 180.0
+PURGE_JOURS = 30
+
+lock_held = False
+lock_path = None
+
+
+def ticks(ns):
+    return TICKS_EPOCH + ns // 100
+
+
+def now_ticks():
+    return TICKS_EPOCH + int(time.time() * 10_000_000)
+
+
+def safe_rel(rel):
+    """Chemin relatif propre (pas de '..', pas d'absolu, pas de NUL)."""
+    if not isinstance(rel, str) or not rel or "\x00" in rel:
+        raise ValueError("chemin invalide")
+    rel = rel.replace("\\", "/")
+    parts = [p for p in rel.split("/") if p not in ("", ".")]
+    if not parts or any(p == ".." for p in parts) or rel.startswith("/") or ":" in parts[0]:
+        raise ValueError("chemin refuse")
+    return "/".join(parts)
+
+
+def set_dir(name):
+    if name not in SETS:
+        raise ValueError("jeu inconnu : %r" % (name,))
+    return os.path.join(ROOT, SETS[name])
+
+
+def is_temp(name):
+    # memes fichiers ignores que le scan local du PC (SetDefs / Fs.AcceptFile) : temporaires, Office, Windows
+    low = name.lower()
+    return (".syncpart-" in name or low.endswith(".tmp") or name.startswith("~$")
+            or low == "thumbs.db" or low == "desktop.ini")
+
+
+# ------------------------------------------------------------------ listage
+def list_set(name):
+    """Retourne (octets UTF-8 'chemin<TAB>taille<TAB>ticks\\n' tries, nombre de noms ignores, nombre d'erreurs de lecture).
+    Les erreurs de lecture (dossier illisible...) sont COMPTEES et non plus avalees : le PC ne doit deduire aucune suppression."""
+    base = set_dir(name)
+    if not os.path.isdir(base):                 # jeu pas encore cree sur le hub : simplement vide (pas une erreur de lecture)
+        return b"", 0, 0
+    out = []
+    ignores = 0
+    erreurs = [0]
+
+    def sur_erreur(_e):
+        erreurs[0] += 1
+
+    for dirpath, dirnames, filenames in os.walk(base, onerror=sur_erreur):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fn in filenames:
+            if is_temp(fn):
+                continue
+            full = os.path.join(dirpath, fn)
+            try:
+                st = os.lstat(full)
+            except OSError:
+                erreurs[0] += 1
+                continue
+            rel = os.path.relpath(full, base).replace(os.sep, "/")
+            try:
+                rel.encode("utf-8")
+            except UnicodeEncodeError:          # nom non representable (octets invalides) : ignore
+                ignores += 1
+                continue
+            if "\t" in rel or "\n" in rel or "\r" in rel:   # casserait le format : ignore
+                ignores += 1
+                continue
+            out.append("%s\t%d\t%d\n" % (rel, st.st_size, ticks(st.st_mtime_ns)))
+    out.sort()
+    return "".join(out).encode("utf-8"), ignores, erreurs[0]
+
+
+# ------------------------------------------------------------------ verrou
+def _lock_file():
+    return os.path.join(ROOT, "_etat", "sync.lock")
+
+
+def _pid_vivant(pid):
+    if pid <= 0:
+        return False
+    if os.name == "nt":                         # Windows (tests) : jamais os.kill(pid, 0), qui tuerait le processus
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        code = ctypes.c_ulong(0)
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259   # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as f:
+            return b"claudesync-serveur" in f.read()
+    except OSError:
+        return False
+
+
+def lock_acquire(pc):
+    global lock_held, lock_path
+    p = _lock_file()
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    reprise = False
+    for _tour in range(3):
+        try:
+            fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o664)
+        except FileExistsError:
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    holder = f.read().strip().split("|")
+                h_pc, h_pid, h_t = holder[0], int(holder[1]), int(holder[2])
+            except Exception:
+                h_pc, h_pid, h_t = "?", -1, 0
+            if h_pid > 0 and h_pid != os.getpid() and _pid_vivant(h_pid):
+                age = max(0, (now_ticks() - h_t) // 10_000_000)
+                return {"ok": False, "holder": h_pc, "age_s": age}
+            if h_pid == os.getpid():            # deja a nous
+                return {"ok": True, "reprise_orphelin": False}
+            try:                                # proprietaire mort : verrou orphelin, on le reprend
+                os.unlink(p)
+                reprise = True
+            except FileNotFoundError:
+                pass
+            continue
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("%s|%d|%d" % (pc, os.getpid(), now_ticks()))
+        lock_held, lock_path = True, p
+        return {"ok": True, "reprise_orphelin": reprise}
+    return {"ok": False, "holder": "?", "age_s": 0}
+
+
+def lock_release():
+    global lock_held
+    if lock_held and lock_path:
+        try:
+            with open(lock_path, "r", encoding="utf-8") as f:
+                mien = int(f.read().split("|")[1]) == os.getpid()
+            if mien:                            # supprime APRES la fermeture du fichier (impossible sous Windows sinon)
+                os.unlink(lock_path)
+        except Exception:
+            pass
+    lock_held = False
+
+
+# ------------------------------------------------------------------ presence
+def presence_write(pc, running):
+    pc = safe_rel(pc)
+    if "/" in pc:
+        raise ValueError("nom de PC invalide")
+    d = os.path.join(ROOT, "_etat")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "presence-%s.txt" % pc), "w", encoding="utf-8") as f:
+        f.write("%d|%d" % (now_ticks(), 1 if running else 0))
+
+
+def presence_read():
+    d = os.path.join(ROOT, "_etat")
+    res = []
+    if os.path.isdir(d):
+        for fn in sorted(os.listdir(d)):
+            if fn.startswith("presence-") and fn.endswith(".txt"):
+                try:
+                    t, r = open(os.path.join(d, fn), encoding="utf-8").read().strip().split("|")[:2]
+                    res.append({"pc": fn[9:-4], "ticks": int(t), "running": r == "1"})
+                except Exception:
+                    pass
+    return res
+
+
+# ------------------------------------------------------------------ corbeille / archive
+def _deplacer(name, rel, zone, stamp, pc=None):
+    src = os.path.join(set_dir(name), safe_rel(rel))
+    if not os.path.isfile(src):
+        return {"ok": False, "err": "absent"}
+    stamp = safe_rel(stamp)
+    dst = os.path.join(ROOT, zone, stamp, name, safe_rel(rel))
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    if pc and zone == "_corbeille":
+        meta = os.path.join(ROOT, zone, stamp, "_par.txt")
+        if not os.path.exists(meta):
+            with open(meta, "w", encoding="utf-8") as f:
+                f.write(pc)
+    os.replace(src, dst)                       # renommage cote serveur : aucun trafic reseau
+    base = os.path.abspath(set_dir(name))      # nettoie les dossiers devenus vides
+    d = os.path.dirname(os.path.abspath(src))
+    while d != base and d.startswith(base):
+        try:
+            os.rmdir(d)
+        except OSError:
+            break
+        d = os.path.dirname(d)
+    return {"ok": True}
+
+
+def _san(s):
+    return s.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def trash_list():
+    """Contenu de _corbeille : lignes 'P<TAB>lot<TAB>pc' puis 'F<TAB>lot<TAB>jeu<TAB>chemin<TAB>taille<TAB>idCli<TAB>titre'.
+    Pour les fiches de sessions (.json du jeu 'sessions'), l'identifiant de conversation et le titre sont extraits ici."""
+    z = os.path.join(ROOT, "_corbeille")
+    out = []
+    if not os.path.isdir(z):
+        return b""
+    for stamp in sorted(os.listdir(z), reverse=True):
+        d = os.path.join(z, stamp)
+        if not os.path.isdir(d):
+            continue
+        try:
+            time.strptime(stamp, "%Y%m%d-%H%M%S")
+        except ValueError:
+            continue
+        pc = ""
+        try:
+            pc = open(os.path.join(d, "_par.txt"), encoding="utf-8").read().strip()
+        except OSError:
+            pass
+        out.append("P\t%s\t%s\n" % (stamp, _san(pc)))
+        for dirpath, _dn, fns in os.walk(d):
+            for f in fns:
+                full = os.path.join(dirpath, f)
+                rel = os.path.relpath(full, d).replace(os.sep, "/")
+                if rel == "_par.txt" or "/" not in rel:
+                    continue
+                jeu, r2 = rel.split("/", 1)
+                try:
+                    size = os.lstat(full).st_size
+                except OSError:
+                    continue
+                cli = title = ""
+                if jeu == "sessions" and f.lower().endswith(".json"):
+                    try:
+                        with open(full, encoding="utf-8", errors="replace") as fh:
+                            txt = fh.read(200000)
+                        m = re.search(r'"cliSessionId"\s*:\s*"([^"]+)"', txt)
+                        cli = m.group(1) if m else ""
+                        m = re.search(r'"title"\s*:\s*"((?:[^"\\]|\\.)*)"', txt)
+                        title = m.group(1) if m else ""
+                    except OSError:
+                        pass
+                out.append("F\t%s\t%s\t%s\t%d\t%s\t%s\n" % (stamp, jeu, _san(r2), size, _san(cli), _san(title)))
+    return "".join(out).encode("utf-8")
+
+
+def trash_restore(stamp, jeu, rel):
+    """Remet un fichier de la corbeille a sa place dans le jeu, sauf s'il y a deja un fichier (rien n'est ecrase)."""
+    src = os.path.join(ROOT, "_corbeille", safe_rel(stamp), set_dir_name(jeu), safe_rel(rel))
+    dst = os.path.join(set_dir(jeu), safe_rel(rel))
+    if not os.path.isfile(src):
+        return {"ok": False, "err": "absent"}
+    if os.path.exists(dst):
+        return {"ok": True, "restored": False}
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.replace(src, dst)
+    d = os.path.dirname(src)                    # nettoie les dossiers vides du lot
+    base = os.path.join(ROOT, "_corbeille", safe_rel(stamp))
+    while os.path.abspath(d).startswith(os.path.abspath(base)) and os.path.abspath(d) != os.path.abspath(os.path.dirname(base)):
+        try:
+            os.rmdir(d)
+        except OSError:
+            break
+        d = os.path.dirname(d)
+    return {"ok": True, "restored": True}
+
+
+def set_dir_name(jeu):
+    set_dir(jeu)                                # valide le nom du jeu
+    return jeu
+
+
+def hub_id():
+    """Identifiant du hub (_etat/hub.id) ; cree une fois s'il manque (un 2e PC ne l'ecrase jamais)."""
+    p = os.path.join(ROOT, "_etat", "hub.id")
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        fd = os.open(p, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o664)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(uuid.uuid4().hex)
+    except FileExistsError:
+        pass
+    except OSError:
+        pass
+    try:
+        return open(p, encoding="utf-8").read().strip()
+    except OSError:
+        return ""
+
+
+# ------------------------------------------------------------------ purge
+def _age_stamp(nom, p):
+    """Date d'un dossier d'archive : son nom 'AAAAMMJJ-HHMMSS' (comme la V1), sinon sa date de modification."""
+    try:
+        return time.mktime(time.strptime(nom, "%Y%m%d-%H%M%S"))
+    except ValueError:
+        return os.lstat(p).st_mtime
+
+
+def purge(days, dry):
+    limite = time.time() - days * 86400
+    res = []
+    for zone in ("_anciennes", "_corbeille"):
+        z = os.path.join(ROOT, zone)
+        if not os.path.isdir(z):
+            continue
+        for stamp in sorted(os.listdir(z)):
+            p = os.path.join(z, stamp)
+            if os.path.isdir(p) and _age_stamp(stamp, p) < limite:
+                res.append("%s/%s" % (zone, stamp))
+                if not dry:
+                    shutil.rmtree(p)
+    return res
+
+
+# ------------------------------------------------------------------ boucle
+def reply(obj, payload=b""):
+    obj["len"] = len(payload)
+    sys.stdout.buffer.write((json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8"))
+    if payload:
+        sys.stdout.buffer.write(payload)
+    sys.stdout.buffer.flush()
+
+
+def handle(req):
+    cmd = req.get("cmd")
+    if cmd == "hello":
+        hid = hub_id()
+        return {"ok": True, "version": VERSION, "proto": PROTO, "hub_id": hid, "temps_ticks": now_ticks()}, b""
+    if cmd == "ping":
+        return {"ok": True}, b""
+    if cmd == "list":
+        data, ignores, erreurs = list_set(req["set"])
+        token = hashlib.sha1(data).hexdigest()
+        count = data.count(b"\n")
+        if req.get("if_changed") == token:
+            return {"ok": True, "unchanged": True, "token": token, "count": count, "ignored": ignores, "errors": erreurs}, b""
+        gz = gzip.compress(data, compresslevel=6)
+        return {"ok": True, "token": token, "count": count, "raw": len(data), "gz": True, "ignored": ignores, "errors": erreurs}, gz
+    if cmd == "hash":                           # empreinte SHA-256 d'un fichier (comparaison de contenu sans le telecharger)
+        p = os.path.join(set_dir(req["set"]), safe_rel(req["rel"]))
+        if not os.path.isfile(p):
+            return {"ok": False, "err": "absent"}, b""
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for bloc in iter(lambda: f.read(1 << 20), b""):
+                h.update(bloc)
+        return {"ok": True, "sha256": h.hexdigest()}, b""
+    if cmd == "touch":                          # remet la date d'un fichier (meme contenu, dates differentes)
+        p = os.path.join(set_dir(req["set"]), safe_rel(req["rel"]))
+        if not os.path.isfile(p):
+            return {"ok": False, "err": "absent"}, b""
+        st = os.lstat(p)
+        os.utime(p, ns=(st.st_atime_ns, (int(req["ticks"]) - TICKS_EPOCH) * 100))
+        return {"ok": True}, b""
+    if cmd == "stat":
+        out = {}
+        for rel in req["rels"]:
+            p = os.path.join(set_dir(req["set"]), safe_rel(rel))
+            try:
+                st = os.lstat(p)
+                out[rel] = [st.st_size, ticks(st.st_mtime_ns)]
+            except OSError:
+                out[rel] = None
+        return {"ok": True, "stat": out}, b""
+    if cmd == "lock.acquire":
+        return lock_acquire(req.get("pc", "?")), b""
+    if cmd == "lock.release":
+        lock_release()
+        return {"ok": True}, b""
+    if cmd == "presence.write":
+        presence_write(req["pc"], bool(req.get("running")))
+        return {"ok": True}, b""
+    if cmd == "presence.read":
+        return {"ok": True, "pcs": presence_read()}, b""
+    if cmd == "trash":
+        return _deplacer(req["set"], req["rel"], "_corbeille", req["stamp"], req.get("pc")), b""
+    if cmd == "archive":
+        return _deplacer(req["set"], req["rel"], "_anciennes", req["stamp"]), b""
+    if cmd == "trash.list":
+        data = trash_list()
+        return {"ok": True, "gz": True, "raw": len(data)}, gzip.compress(data, compresslevel=6)
+    if cmd == "trash.restore":
+        return trash_restore(req["stamp"], req["set"], req["rel"]), b""
+    if cmd == "purge":
+        r = purge(int(req.get("days", PURGE_JOURS)), bool(req.get("dry", True)))
+        return {"ok": True, "dry": bool(req.get("dry", True)), "dossiers": r}, b""
+    if cmd == "bye":
+        return {"ok": True, "bye": True}, b""
+    return {"ok": False, "err": "commande inconnue : %r" % (cmd,)}, b""
+
+
+def _lecteur(q):
+    """Lit stdin ligne par ligne dans un fil a part (select() ne marche pas sur un tube Windows)."""
+    try:
+        while True:
+            line = sys.stdin.buffer.readline()
+            q.put(line)
+            if not line:
+                return
+    except Exception:
+        q.put(b"")
+
+
+def main():
+    if not ROOT or not os.path.isdir(ROOT):
+        sys.stderr.write("CS_ROOT absent ou invalide\n")
+        return 2
+    try:                                        # dossier des fichiers temporaires de rsync (--temp-dir=/.rsync-tmp), hors des jeux
+        os.makedirs(os.path.join(ROOT, ".rsync-tmp"), exist_ok=True)
+    except OSError:
+        pass
+    atexit.register(lock_release)
+    for nom in ("SIGTERM", "SIGHUP", "SIGINT"):
+        sg = getattr(signal, nom, None)
+        if sg is not None:
+            try:
+                signal.signal(sg, lambda *_: sys.exit(0))
+            except (ValueError, OSError):
+                pass
+    q = queue.Queue()
+    threading.Thread(target=_lecteur, args=(q,), daemon=True).start()
+    attente = max(0.25, min(15.0, LOCK_SILENCE / 2.0))
+    last = time.time()
+    while True:
+        try:
+            line = q.get(timeout=attente)
+        except queue.Empty:
+            if lock_held and time.time() - last > LOCK_SILENCE:
+                lock_release()                  # PC muet : on libere le verrou
+            continue
+        if not line:                            # connexion fermee (PC eteint, ssh coupe)
+            return 0
+        last = time.time()
+        try:
+            req = json.loads(line.decode("utf-8-sig"))   # tolere un BOM de debut de flux (.NET en ecrit un a l'ouverture du tube)
+            if not isinstance(req, dict):
+                raise ValueError("requete invalide")
+            resp, payload = handle(req)
+        except Exception as e:                  # jamais de trace brute vers le PC
+            resp, payload = {"ok": False, "err": "%s: %s" % (type(e).__name__, e)}, b""
+        reply(resp, payload)
+        if resp.get("bye"):
+            return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

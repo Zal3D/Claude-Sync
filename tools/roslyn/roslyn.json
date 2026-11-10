@@ -1,0 +1,11 @@
+{
+  "paquet": "Microsoft.Net.Compilers.Toolset",
+  "version": "5.9.0",
+  "source": "https://api.nuget.org/v3-flatcontainer/microsoft.net.compilers.toolset/5.9.0/microsoft.net.compilers.toolset.5.9.0.nupkg",
+  "sha256": "b0227910320c5af14d80ec32b5e1a759c1e3cc2ec12e7d9cc8862cf826bd9551",
+  "sha512_verifie_contre": "nuget.org (catalogue)",
+  "licence": "MIT",
+  "editeur": "Microsoft",
+  "dossier_origine": "tasks/net472",
+  "note": "Compilateur C# moderne portable (aucune installation). Sert a compiler vers .NET Framework 4.8 avec un langage recent."
+}

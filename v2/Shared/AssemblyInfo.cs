@@ -1,0 +1,8 @@
+[assembly: System.Runtime.Versioning.TargetFramework(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
+[assembly: System.Reflection.AssemblyTitle("Claude-Sync")]
+[assembly: System.Reflection.AssemblyDescription("Synchronise Claude Desktop conversations and project folders between PCs through your own SSH server (rsync)")]
+[assembly: System.Reflection.AssemblyProduct("Claude-Sync")]
+[assembly: System.Reflection.AssemblyCopyright("(c) 2026 Romain NOZAL - MIT License")]
+[assembly: System.Reflection.AssemblyVersion("2.0.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("2.0.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersion("2.0.0-dev")]

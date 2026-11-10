@@ -1,0 +1,9 @@
+# build output
+dist/
+*.pdb
+# local test leftovers
+*.log
+mesures-j5.txt
+# compiler downloaded by tools/get-roslyn.ps1 (only its manifest is versioned)
+tools/roslyn/*
+!tools/roslyn/roslyn.json

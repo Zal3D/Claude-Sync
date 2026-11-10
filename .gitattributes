@@ -1,0 +1,9 @@
+* text=auto
+*.exe binary
+*.dll binary
+*.zst binary
+*.png binary
+*.ico binary
+claudesync-serveur text eol=lf
+claudesync-entree text eol=lf
+*.py text eol=lf

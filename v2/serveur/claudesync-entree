@@ -1,0 +1,24 @@
+#!/bin/sh
+# claudesync-entree : aiguilleur de la commande forcee SSH de la cle Claude-Sync.
+# Installe par l'inscription dans le dossier personnel de l'utilisateur (~/.claudesync/), appele via authorized_keys :
+#   restrict,command="CS_ROOT='<dossier du hub>' <home>/.claudesync/claudesync-entree" ssh-ed25519 AAAA... claude-sync:<PC>
+# Deux usages seulement, tout le reste est refuse :
+#   rsync --server ...     -> rrsync, limite au dossier CS_ROOT (sans suppression)
+#   claudesync-serveur     -> le programme serveur de Claude-Sync
+[ -n "$CS_ROOT" ] && [ -d "$CS_ROOT" ] || { echo "claudesync-entree : CS_ROOT invalide" >&2; exit 2; }
+DIR=$(dirname "$0")
+[ -d "$CS_ROOT/.rsync-tmp" ] || mkdir -p "$CS_ROOT/.rsync-tmp"   # fichiers temporaires de rsync (--temp-dir), hors des jeux de fichiers
+case "$SSH_ORIGINAL_COMMAND" in
+  "rsync --server"*)
+      RR=""
+      for p in /usr/bin/rrsync /usr/lib/rsync/rrsync /usr/share/doc/rsync/support/rrsync /opt/bin/rrsync /bin/rrsync /usr/local/bin/rrsync; do
+          [ -x "$p" ] && { RR="$p"; break; }
+      done
+      [ -n "$RR" ] || { echo "claudesync-entree : rrsync introuvable sur ce serveur" >&2; exit 3; }
+      exec "$RR" -no-del "$CS_ROOT" ;;
+  "claudesync-serveur")
+      PY=$(command -v python3) || { echo "claudesync-entree : python3 introuvable" >&2; exit 3; }
+      exec "$PY" "$DIR/claudesync-serveur" ;;
+  *)
+      echo "claudesync-entree : commande refusee" >&2; exit 126 ;;
+esac
