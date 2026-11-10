@@ -36,7 +36,7 @@ public sealed class AppConfig
             {
                 Host = Json.Str(d, "hote") ?? "", User = Json.Str(d, "utilisateur") ?? "", Folder = Json.Str(d, "dossier") ?? "",
                 Pc = Json.Str(d, "pc") ?? Environment.MachineName, KeyFile = Json.Str(d, "cle") ?? "", KnownHosts = Json.Str(d, "known_hosts") ?? "",
-                ToolsDir = Json.Str(d, "outils") ?? "", ProjetsRoot = Json.Str(d, "projets") ?? @"C:\Projets", IndexDir = Json.Str(d, "sessions"),
+                ToolsDir = Json.Str(d, "outils") ?? "", ProjetsRoot = (Json.Str(d, "projets") ?? @"C:\Projets").Replace('/', '\\'), IndexDir = Json.Str(d, "sessions")?.Replace('/', '\\'),
                 UpdateSource = Json.Str(d, "mises_a_jour") ?? "", Language = Json.Str(d, "langue") ?? ""
             };
             long port = Json.Lng(d, "port"); if (port > 0) c.Port = (int)port;

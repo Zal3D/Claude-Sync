@@ -12,7 +12,7 @@ namespace ClaudeSync.V2;
 
 public static class V2Info
 {
-    public const string Version = "2.0.0-beta.1";
+    public const string Version = "2.0.0-beta.2";
 }
 
 public sealed class AppModel

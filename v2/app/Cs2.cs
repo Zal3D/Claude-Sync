@@ -69,7 +69,7 @@ public static class Cs2
         Loc.Detect(model.Config?.Language);
         if (!first) { Console.WriteLine(Loc.S("tray.already")); return 20; }
         int.TryParse(a.Opt("exit-after"), out int after);
-        var app = new TrayApp2(model, a.Has("hidden"), after);
+        var app = new TrayApp2(model, a.Has("hidden"), after, a.Has("no-watch"));
         System.Windows.Forms.Application.Run(app);
         return 0;
     }
@@ -193,11 +193,11 @@ public static class Cs2
     static int Help()
     {
         Console.WriteLine("Claude-Sync V2 (console)\n" +
-            "  enroll --host H --user U [--port 22] [--folder claude-sync] [--pc NOM] [--projets C:\\Projets] [--fingerprint SHA256:...]   (mot de passe : variable CS_PASSWORD, sinon saisie)\n" +
+            "  enroll --host H --user U [--port 22] [--folder claude-sync] [--pc NOM] [--projets C:\\Projets] [--fingerprint SHA256:... | --yes] [--admin-key FICHIER [--admin-login root@hote]]   (mot de passe : variable CS_PASSWORD, sinon saisie)\n" +
             "  sync [--apply] [--claude auto|yes|no|idle] [--wait-lock SECONDES] [--no-pull]    (sans --apply : simulation)\n" +
             "  update [--source proprietaire/depot] [--install]\n" +
             "  install [--silent] [--no-startup] [--launch] | uninstall [--silent] [--purge-state]   (--sandbox DOSSIER : essai hors du vrai profil)\n" +
-            "  ping | conflicts | resolve N local|hub|both | trash | restore N | purge [--days 30]\n" +
+            "  ping | conflicts | resolve N local|hub|both [--claude no] | trash | restore N [--claude no] | purge [--days 30]\n" +
             "  option commune : --state DOSSIER (defaut : %LOCALAPPDATA%\\ClaudeSync2)");
         return 0;
     }
@@ -252,7 +252,7 @@ public static class Cs2
     static int Resolve(Args a, AppConfig c, string state)
     {
         if (a.Pos.Count < 2 || !int.TryParse(a.Pos[0], out int n)) { Console.WriteLine("Usage : resolve N local|hub|both"); return 2; }
-        var (e, p) = NewEngine(c, state);
+        var (e, p) = NewEngine(c, state, o => o.ClaudeRunning = a.Opt("claude") ?? "auto");
         using (p) { string m = e.Resolve(n, a.Pos[1]); Console.WriteLine(m); return m.StartsWith("Conflit resolu") ? 0 : 1; }
     }
 
@@ -271,7 +271,7 @@ public static class Cs2
     static int Restore(Args a, AppConfig c, string state)
     {
         if (a.Pos.Count < 1 || !int.TryParse(a.Pos[0], out int n)) { Console.WriteLine("Usage : restore N"); return 2; }
-        var (e, p) = NewEngine(c, state);
+        var (e, p) = NewEngine(c, state, o => o.ClaudeRunning = a.Opt("claude") ?? "auto");
         using (p) { Console.WriteLine(e.RestoreEntry(n)); return 0; }
     }
 
@@ -323,9 +323,22 @@ public static class Cs2
                 return (Console.ReadLine() ?? "").Trim().ToLowerInvariant() is "oui" or "o" or "yes" or "y";
             }
         };
-        // le mot de passe n'est demande qu'apres confirmation de l'empreinte : on le lit a la demande de l'amorcage
-        req.Password = ReadPassword();
-        var r = Enroller.Run(req);
+        string? adminKey = a.Opt("admin-key");
+        if (a.Has("yes")) req.ConfirmFingerprint = fp => { Console.WriteLine("Empreinte acceptee (--yes) : " + fp); return true; };
+        EnrollResult r;
+        if (adminKey != null)
+        {
+            // amorcage par la cle d'un administrateur du serveur (essais, installations par un administrateur) : aucun mot de passe
+            string known = Path.Combine(state, "ssh", "known_hosts");
+            var shell = new Enroller.SshShell(req, known, adminKey, a.Opt("admin-login") ?? ("root@" + host), user);
+            r = Enroller.Run(req, shell);
+        }
+        else
+        {
+            // le mot de passe n'est demande qu'apres confirmation de l'empreinte : on le lit a la demande de l'amorcage
+            req.Password = ReadPassword();
+            r = Enroller.Run(req);
+        }
         Console.WriteLine(r.Message);
         if (r.Ok) Console.WriteLine("Configuration : " + AppConfig.FileOf(state) + "\nVerifiez avec : ClaudeSync2 ping  puis  ClaudeSync2 sync");
         return r.Ok ? 0 : 1;

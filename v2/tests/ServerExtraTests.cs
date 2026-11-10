@@ -36,6 +36,17 @@ static class ServerExtraTests
             using (var h = Env.Open(root)) T.Check("un identifiant existant n'est jamais ecrase", h.Hello().HubId == "choisi-a-la-main");
         });
 
+        T.Run("T26b hub neuf : les dossiers des jeux (a deux niveaux : claude/projects) sont crees, sinon le 1er envoi echoue", delegate
+        {
+            string root = Path.Combine(Env.Tmp, "hubneuf"); Directory.CreateDirectory(root);
+            using (var h = Env.Open(root)) h.Hello();
+            foreach (string d in new[] { "claude/projects", "claude/reglages", "claude/file-history", "projets", "desktop/sessions" })
+                T.Check("dossier cree : " + d, Directory.Exists(Path.Combine(root, d.Replace('/', '\\'))), d);
+            string marque = Path.Combine(root, "claude", "projects", "garde.txt"); File.WriteAllText(marque, "x");
+            using (var h = Env.Open(root)) h.Hello();
+            T.Check("un second hello ne touche a rien", File.Exists(marque));
+        });
+
         T.Run("T27 hash et touch : empreinte calculee par le serveur, date remise a l'identique", delegate
         {
             string root = Env.NewHub(); W(root, "projets/d/é x.txt", "contenu à hacher");

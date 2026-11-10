@@ -24,7 +24,7 @@ sealed class TrayApp2 : ApplicationContext
     volatile bool handling;
     float angle; Icon? cur; bool disposed;
 
-    public TrayApp2(AppModel model, bool hidden, int exitAfterSeconds = 0)
+    public TrayApp2(AppModel model, bool hidden, int exitAfterSeconds = 0, bool noWatch = false)
     {
         M = model;
         win = new MainWindow(M) { HideOnClose = true };
@@ -56,7 +56,7 @@ sealed class TrayApp2 : ApplicationContext
         IntPtr hh = win.Handle;                                    // cree le handle meme si la fenetre reste cachee
         SystemEvents.UserPreferenceChanged += (_, _) => { try { win.BeginInvoke(new Action(() => { Theme.Load(); win.ApplyTheme(); SetIcon(); })); } catch (Exception) { } };
         if (!hidden || !M.Configured) ShowWindow(PageId.Home);
-        if (M.Configured && !M.Demo)
+        if (M.Configured && !M.Demo && !noWatch)       // --no-watch : aucune surveillance de Claude Desktop (jamais de fermeture/relance), pour les essais en bac a sable
         {
             Task.Run(() => { try { M.LoadTrash(); } catch (Exception) { } });
             watch = new System.Windows.Forms.Timer { Interval = 1000 }; watch.Tick += (_, _) => WatchTick(); watch.Start();

@@ -45,13 +45,27 @@ static class AppTests
             var c = new AppConfig { Host = "nas.exemple.fr", Port = 2222, User = "léa", Folder = "/srv/cs", Pc = "PC-LÉA", KeyFile = @"C:\Users\léa\k", KnownHosts = @"C:\Users\léa\kh", ToolsDir = @"C:\Prog Files\cs\outils", ProjetsRoot = @"D:\Mes Projets", IndexDir = @"C:\idx", SlowMs = 200, UpdateSource = "https://github.com/x/y", Language = "fr" };
             c.Save(d);
             var r = AppConfig.Load(d);
-            T.Check("relue identique (accents, espaces)", r != null && r.Host == c.Host && r.Port == 2222 && r.User == "léa" && r.Pc == "PC-LÉA" && r.ProjetsRoot == "D:/Mes Projets" && r.IndexDir == "C:/idx" && r.SlowMs == 200 && r.Language == "fr" && r.UpdateSource == c.UpdateSource);
+            T.Check("relue identique (accents, espaces)", r != null && r.Host == c.Host && r.Port == 2222 && r.User == "léa" && r.Pc == "PC-LÉA" && r.ProjetsRoot == @"D:\Mes Projets" && r.IndexDir == @"C:\idx" && r.SlowMs == 200 && r.Language == "fr" && r.UpdateSource == c.UpdateSource);
             T.Check("aucun secret dans le fichier", !File.ReadAllText(AppConfig.FileOf(d)).ToLowerInvariant().Contains("password") && !File.ReadAllText(AppConfig.FileOf(d)).Contains("PRIVATE"));
             File.WriteAllText(AppConfig.FileOf(d), "{pas du json");
             T.Check("corrompue -> null (pas d'exception)", AppConfig.Load(d) == null);
             File.WriteAllText(AppConfig.FileOf(d), "{\"hote\":\"\",\"utilisateur\":\"u\"}");
             T.Check("hote vide -> null", AppConfig.Load(d) == null);
             T.Check("dossier d'etat V2 distinct de celui de la V1", AppConfig.DefaultStateDir.EndsWith("ClaudeSync2"));
+        });
+
+        T.Run("T100b dossiers locaux ecrits avec des / (config.json) : le dossier de projets est bien analyse (defaut trouve par l'essai en bac a sable : 0 fichier vu)", delegate
+        {
+            string root = Path.Combine(Env.Tmp, "projets-slash", "Mes Projets"); Directory.CreateDirectory(Path.Combine(root, "sous")); File.WriteAllText(Path.Combine(root, "sous", "a.txt"), "x");
+            string withSlash = root.Replace('\\', '/');
+            T.Check("Fs.Long redresse les / (le prefixe long desactive la normalisation de Windows)", Directory.Exists(Fs.Long(withSlash)) && Fs.Long(withSlash).StartsWith(@"\\?\") && !Fs.Long(withSlash).Contains("/"));
+            var c = new AppConfig { Host = "h", User = "u", ProjetsRoot = root };
+            string d = Path.Combine(Env.Tmp, "cfg-slash"); c.Save(d);
+            T.Check("le fichier contient des /, la relecture rend des \\", File.ReadAllText(AppConfig.FileOf(d)).Contains("/Mes Projets") && AppConfig.Load(d)!.ProjetsRoot == root);
+            var set = SetDefs.Build(Path.Combine(Env.Tmp, "profil-x"), AppConfig.Load(d)!.ProjetsRoot, null).First(s => s.Name == "projets");
+            T.Check("le jeu 'projets' voit le fichier", SetDefs.ScanLocal(set, out _, out int err).ContainsKey("sous/a.txt") && err == 0);
+            var set2 = SetDefs.Build(Path.Combine(Env.Tmp, "profil-x"), withSlash, null).First(s => s.Name == "projets");
+            T.Check("meme avec un chemin ecrit avec des / (protection supplementaire)", SetDefs.ScanLocal(set2, out _, out _).ContainsKey("sous/a.txt"));
         });
 
         T.Run("T101 mot de passe SSH : transmis par l'environnement, jamais sur le disque", delegate

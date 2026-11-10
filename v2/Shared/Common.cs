@@ -81,6 +81,7 @@ namespace ClaudeSync.V2
         public static string Long(string p)
         {
             if (p.StartsWith(@"\\?\")) return p;
+            p = p.Replace('/', '\\');             // le prefixe \\?\ desactive la normalisation de Windows : "C:/Projets" serait introuvable
             if (p.StartsWith(@"\\")) return @"\\?\UNC\" + p.Substring(2);
             return @"\\?\" + p;
         }
